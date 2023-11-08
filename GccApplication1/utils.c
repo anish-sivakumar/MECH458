@@ -7,8 +7,14 @@
 
 #include <stdlib.h> // the header of the general-purpose standard library of C programming language
 #include <avr/io.h> // the header of I/O port
+#include <avr/interrupt.h>
 
 #include "utils.h"
+
+
+// goes high when ADC is done 
+volatile unsigned int ADC_result_flag;
+
 
 void debounceDelay()
 {
@@ -55,15 +61,46 @@ void mTimer(int count)
 	}
 }
 
-void delaynus(int n) // delay microsecond
-{
-	int k;
-	for(k=0;k<n;k++)
-	_delay_loop_1(1);
+void adc_init()
+{	
+	// config ADC 
+	// by default, the ADC input (analog input is set to be ADC0 / PORTF0
+	ADCSRA |= _BV(ADEN); // enable ADC
+	
+	ADCSRA |= _BV(ADIE); // enable interrupt of ADC
+	
+	ADMUX |= _BV(ADLAR) | _BV(REFS0); // Read Technical Manual & Complete Comment
+	
+	// make sure adc result flag is not set
+	ADC_result_flag = 0;
 }
-void delaynms(int n) // delay millisecond
+
+uint8_t adc_read()
 {
-	int k;
-	for(k=0;k<n;k++)
-	delaynus(1000);
+	
+	// trigger ADC read
+	ADCSRA |= _BV(ADSC);
+	
+	// wait on ADC result flag
+	while (ADC_result_flag != 1);
+	
+	
+	// reset adc result flag
+	ADC_result_flag = 0;
+	
+	// return the adc result
+	return ADCH;
+}
+
+//ISRs
+
+ISR(ADC_vect)
+{
+	ADC_result_flag = 1;
+}
+
+void EI_init()
+{
+	EIMSK |= (_BV(INT0) | (_BV(INT1))); // enable INT2
+	EICRA |= (_BV(ISC01) | _BV(ISC00) | _BV(ISC11) | _BV(ISC10)); // rising edge interrupt	
 }
