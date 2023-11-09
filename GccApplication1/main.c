@@ -70,6 +70,7 @@ int main(int argc, char *argv[]){
 	////////////////////////////
 	// Main FSM control loop ///
 	////////////////////////////
+	state = STEPPER_CONTROL; // for testing
 	while(1)
 	{
 		switch (state)
@@ -104,6 +105,12 @@ int main(int argc, char *argv[]){
 						-> Go to PAUSE
 					
 				*/
+				
+				rotate(33);
+				rotate(200);
+				mTimer(2000);
+				rotate2(33);
+				rotate2(200)
 				break;
 				
 			case PAUSE:
