@@ -75,7 +75,7 @@ void adc_init()
 	ADC_result_flag = 0;
 }
 
-uint8_t adc_read()
+uint16_t adc_read()
 {
 	
 	// trigger ADC read
@@ -84,12 +84,11 @@ uint8_t adc_read()
 	// wait on ADC result flag
 	while (ADC_result_flag != 1);
 	
-	
 	// reset adc result flag
 	ADC_result_flag = 0;
 	
 	// return the adc result
-	return ADCH;
+	return ADCW;
 }
 
 //ISRs

@@ -25,4 +25,6 @@ void pwm_set(uint8_t compare_val);
 void motor_jog(motor_dir_t dir, uint8_t compare_val);
 void motor_brake();
 
+void getDirectionStr(char* str, motor_dir_t dir);
+
 #endif /* DC_MOTOR_H_ */

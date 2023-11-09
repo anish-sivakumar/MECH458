@@ -19,6 +19,6 @@ typedef enum shiftDir
 void debounceDelay();
 void mTimer(int count);
 void adc_init();
-uint8_t adc_read();
+uint16_t adc_read();
 
 #endif /* INCFILE1_H_ */

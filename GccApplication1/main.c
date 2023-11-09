@@ -9,12 +9,23 @@
 
 #include <util/delay_basic.h>
 #include <avr/interrupt.h>
+#include <stdlib.h> // the header of the general-purpose standard library of C programming language
+#include <stdio.h> 
+#include <avr/io.h> // the header of I/O port
+
+// Custom includes
 #include "utils.h"
 #include "stepper.h"
 #include "dc_motor.h"
 #include "lcd.h"
-#include <stdlib.h> // the header of the general-purpose standard library of C programming language
-#include <avr/io.h> // the header of I/O port
+
+
+// Object calibration values
+#define OBJECT_THRESH 900
+#define BLACK_THRESH
+#define WHITE_THRESH
+#define STEEL_THRESH
+#define ALUM_THRESH
 
 typedef enum FSM_state
 {
@@ -27,6 +38,11 @@ typedef enum FSM_state
 FSM_state_t state = POLLING;
 volatile motor_dir_t motor_dir;
 volatile unsigned int motor_pwr; //1 is on, 0 is off
+volatile unsigned int rampdown = 0;
+
+// ADC classification variables
+uint16_t adc_val, adc_min, adc_total_min, adc_total_max; 
+int obj_detect = 0;
 
 /* ################## MAIN ROUTINE ################## */
 
@@ -61,7 +77,7 @@ int main(int argc, char *argv[]){
 	// Set defaults
 	motor_dir = forward;
 	motor_pwr = 1;
-	uint8_t pwm_setting = 0x00;
+	uint8_t pwm_setting = 0xFF;
 	
 	// Set up LCD
 	InitLCD(LS_BLINK|LS_ULINE);
@@ -71,6 +87,18 @@ int main(int argc, char *argv[]){
 	// Main FSM control loop ///
 	////////////////////////////
 	state = STEPPER_CONTROL; // for testing
+
+	#ifdef ADC_PLOT
+	// Generate CSV of ADC readings
+	unsigned int adc_count = 0;
+	char adc_msg[20];
+	FILE *f_adc;
+	f_adc = fopen("ADC_data.csv","w");
+	#endif
+	
+	///////////////////////////
+	// Main FSM control loop //
+	///////////////////////////
 	while(1)
 	{
 		switch (state)
@@ -85,12 +113,59 @@ int main(int argc, char *argv[]){
 					
 					Exit conditions:
 					If the beam sensor is triggered and the plate is not in the correct position:
+						-- Compute stepper command
 						-> Go to STEPPER_CONTROL
 					If the pause button is pressed:
 						-> Go to PAUSE
 					If the object queue is empty and the rampdown flag has been set:
 						-> Go to END	
 				*/
+				
+				// Get ADC reading
+				adc_val = adc_read();
+				
+				// Object processing logic
+				if (adc_val < OBJECT_THRESH)
+				{
+					// Were detecting an object
+					obj_detect = 1;
+					if (adc_val < adc_min)
+					{
+						adc_min = adc_val;
+					}
+				}
+				else if (obj_detect)
+				{
+					// Object has finished passing through, process it
+					if (adc_min > adc_total_max)
+					{
+						adc_total_max = adc_min;
+					}
+					if (adc_min < adc_total_min)
+					{
+						adc_total_min = adc_min;
+					}
+					
+					LCDWriteIntXY(0,0,adc_total_max,5);
+					LCDWriteIntXY(6,0,adc_total_min,5);
+					
+					// Reset values
+					obj_detect = 0;
+					adc_min = 0xFFFF;
+				}
+				
+				
+				
+				
+				// Check rampdown flag
+				if (rampdown)
+				{
+					state = END;
+				}
+				
+				// Hardcode a delay 
+				mTimer(10);
+				
 				break;
 			
 			case STEPPER_CONTROL:
@@ -109,8 +184,6 @@ int main(int argc, char *argv[]){
 				rotate(33);
 				rotate(200);
 				mTimer(2000);
-				rotate2(33);
-				rotate2(200)
 				break;
 				
 			case PAUSE:
@@ -132,6 +205,11 @@ int main(int argc, char *argv[]){
 					In this state, motors are turned off and the program terminates.
 				*/
 				
+				
+				#ifdef ADC_PLOT
+				fclose(f_adc);
+				#endif
+				
 				return (0); 
 			
 		}
@@ -141,16 +219,12 @@ int main(int argc, char *argv[]){
 
 }
 
-//  switch 0 - direction
+
+
+//  switch 0 - rampdown
 ISR(INT0_vect)
-{ // when there is a rising edge
-	if (motor_dir == forward)
-	{
-		motor_dir = reverse;		
-	} else if (motor_dir == reverse)
-	{
-		motor_dir = forward;		
-	}
+{ 
+	rampdown = 1;
 }
 
 //  switch 1 - on/off
@@ -158,11 +232,13 @@ ISR(INT1_vect)
 { // when there is a rising edge
 	if (motor_pwr == 0)
 	{
+		motor_jog(forward, motor_pwr);
 		motor_pwr = 1;
-	} else if (motor_pwr == 1)
+	} 
+	else if (motor_pwr == 1)
 	{
+		motor_brake();
 		motor_pwr = 0;
 	}
-
 }
 
