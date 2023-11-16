@@ -88,7 +88,7 @@ uint16_t adc_read()
 	ADC_result_flag = 0;
 	
 	// return the adc result
-	return ADCW;
+	return (ADCW >> 6);
 }
 
 //ISRs
