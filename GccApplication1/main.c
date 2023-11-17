@@ -19,13 +19,11 @@
 #include "dc_motor.h"
 #include "lcd.h"
 
+// Calibration mode enable switch, uncomment to calibrate system
+//#define CALIBRATION_MODE
 
-// Object calibration values
-#define OBJECT_THRESH 1012
-#define BLACK_THRESH 995
-#define WHITE_THRESH 950
-#define STEEL_THRESH 900
-#define ALUM_THRESH 500
+// Object detection threshold value
+#define OBJECT_THRESH 998
 
 typedef enum FSM_state
 {
@@ -35,19 +33,31 @@ typedef enum FSM_state
 	END
 }FSM_state_t;
 
+// Main FSM state variable
 FSM_state_t state = POLLING;
+
+// Motor settings
 volatile motor_dir_t motor_dir;
-volatile unsigned int motor_pwr; //1 is on, 0 is off
+volatile int motor_pwr; //1 is on, 0 is off
 volatile uint8_t pwm_setting = 0x80;
 
-volatile unsigned int rampdown = 0;
+// Stepper settings
+int last_step = 0;
 
 // ADC classification variables
 uint16_t adc_val = 0;
 uint16_t adc_min = 0;
-uint16_t adc_total_min = 0;
-uint16_t adc_total_max = 0; 
 int obj_detect = 0;
+cyl_t cyl_type = DISCARD;
+
+// Object queue variables
+cyl_t move_to;
+
+// Belt end detect flag
+volatile int end_detect = 0;
+
+// Rampdown flag
+volatile int rampdown = 0;
 
 /* ################## MAIN ROUTINE ################## */
 
@@ -84,13 +94,13 @@ int main(int argc, char *argv[]){
 	motor_pwr = 1;
 	
 	// Set up LCD
-
 	InitLCD(LS_BLINK|LS_ULINE);
 	LCDClear();
 	
 	///////////////////////////
 	// Main FSM control loop //
 	///////////////////////////
+	
 	while(1)
 	{
 		switch (state)
@@ -112,8 +122,8 @@ int main(int argc, char *argv[]){
 					If the object queue is empty and the rampdown flag has been set:
 						-> Go to END	
 				*/
-				
-				motor_jog(forward,0x80);
+				motor_jog(forward,0x40);
+
 				
 				// Get ADC reading
 				adc_val = adc_read();
@@ -131,31 +141,29 @@ int main(int argc, char *argv[]){
 				else if (obj_detect)
 				{
 					// Object has finished passing through, process it
-					
-					// If this is the first pass, set both total min and total max
-					if(adc_total_min == 0 && adc_total_max == 0)
-					{
-						adc_total_max = adc_min;
-						adc_total_min = adc_min;
-					}
-					// Otherwise, update the total min and total max values accordingly
-					else if (adc_min > adc_total_max)
-					{
-						adc_total_max = adc_min;
-					}
-					else if (adc_min < adc_total_min)
-					{
-						adc_total_min = adc_min;
-					}
-					LCDWriteIntXY(0,0,adc_total_max,5);
-					LCDWriteIntXY(6,0,adc_total_min,5);
-					
+					#ifdef CALIBRATION_MODE
+						display_calibration(adc_min);
+					#else
+						cyl_type = get_cyl_type(adc_min);
+						if (cyl_type != DISCARD) 
+							move_to = cyl_type;
+						LCDWriteIntXY(0,0,cyl_type,1);
+					#endif
 					// Reset values
 					obj_detect = 0;
 					adc_min = 0xFFFF;
 				}
 				
 				LCDWriteIntXY(0,1,adc_val,5);
+				
+				// Check end of belt flag
+				if (end_detect)
+				{
+					state = STEPPER_CONTROL;
+					motor_brake();
+					end_detect = 0;
+					continue;
+				}
 
 				// Check rampdown flag
 				if (rampdown)
@@ -180,10 +188,9 @@ int main(int argc, char *argv[]){
 						-> Go to PAUSE
 					
 				*/
-				
-				rotate(33);
-				rotate(200);
-				mTimer(2000);
+				basic_align(move_to);
+				state = POLLING;
+
 				break;
 				
 			case PAUSE:
@@ -236,5 +243,13 @@ ISR(INT1_vect)
 		motor_brake();
 		motor_pwr = 0;
 	}
+}
+
+//  end of belt detect
+// There is probably a better way to do this transition, just keeping it simple for now
+
+ISR(INT2_vect)
+{
+	end_detect = 1;
 }
 

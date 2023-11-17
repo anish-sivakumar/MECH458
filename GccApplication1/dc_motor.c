@@ -40,35 +40,36 @@ void pwm_set(uint8_t compare_val)
 void motor_jog(motor_dir_t dir, uint8_t compare_val) //direction (ccw - fwd)
 {
 	
-	// break 5ms if were changing direction
-	motor_dir_t prevDir = invalid;
-	
-	//portB 7XXX 3210, where bits [0123 XXX7] -> [pwm,X,X,X,Ib,Eb,Ea,Ia]
-	
-	if(prevDir != dir){
-		motor_brake();
-		mTimer(5);//delay 5ms if changing direction to let switches not float
-		
-	}
+	//// break 5ms if were changing direction
+	//motor_dir_t prevDir = invalid;
+	//
+	////portB 7XXX 3210, where bits [0123 XXX7] -> [pwm,X,X,X,Ib,Eb,Ea,Ia]
+	//
+	//if(prevDir != dir){
+		//motor_brake();
+		//mTimer(5);//delay 5ms if changing direction to let switches not float
+		//
+	//}
 	
 	pwm_set(compare_val);
-	if (dir == forward)
-	{
+	//if (dir == forward)
+	//{
+
 		PORTB = (PORTB & 0b11110000) | 0b00001110; //INb HI and enables HI
-	
-	}
-	else if (dir == reverse)
-	{
-		PORTB = (PORTB & 0b11110000) | 0b00000111; //INa HI and enables HI
-	}
-	
-	prevDir = dir; // to see if we are changing directions
+
+	//}
+	//else if (dir == reverse)
+	//{
+		//PORTB = (PORTB & 0b11110000) | 0b00000111; //INa HI and enables HI
+	//}
+	//
+	//prevDir = dir; // to see if we are changing directions
 	
 }
 
 void motor_brake() //break HI
 {
-	PORTB = PORTB | 0b00001111;	//INa/INb = 1/1 enables HI
+	PORTB = (PORTB & 0b11110000) | 0b00001111;	//INa/INb = 1/1 enables HI
 }
 
 

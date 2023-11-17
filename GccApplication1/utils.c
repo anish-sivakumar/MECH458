@@ -10,11 +10,63 @@
 #include <avr/interrupt.h>
 
 #include "utils.h"
-
+#include "lcd.h"
 
 // goes high when ADC is done 
 volatile unsigned int ADC_result_flag;
 
+// Calibration Settings
+#define BLACK_THRESH 995
+#define WHITE_THRESH 950
+#define STEEL_THRESH 900
+#define ALUM_THRESH 500
+uint16_t adc_total_min = 0;
+uint16_t adc_total_max = 0;
+
+void display_calibration(uint16_t adc_min)
+{
+	// If this is the first pass, set both total min and total max
+	if(adc_total_min == 0 && adc_total_max == 0)
+	{
+		adc_total_max = adc_min;
+		adc_total_min = adc_min;
+	}
+	// Otherwise, update the total min and total max values accordingly
+	else if (adc_min > adc_total_max)
+	{
+		adc_total_max = adc_min;
+	}
+	else if (adc_min < adc_total_min)
+	{
+		adc_total_min = adc_min;
+	}
+	LCDWriteIntXY(0,0,adc_total_max,5);
+	LCDWriteIntXY(6,0,adc_total_min,5);
+}
+
+cyl_t get_cyl_type(uint16_t adc_min)
+{
+	if (adc_min < ALUM_THRESH)
+	{
+		return ALUM;
+	}
+	else if (adc_min < STEEL_THRESH)
+	{
+		return STEEL;
+	}
+	else if (adc_min < WHITE_THRESH)
+	{
+		return WHITE;
+	}
+	else if (adc_min < BLACK_THRESH)
+	{
+		return BLACK;
+	}
+	else 
+	{
+		return DISCARD;
+	}
+}
 
 void debounceDelay()
 {
@@ -100,6 +152,7 @@ ISR(ADC_vect)
 
 void EI_init()
 {
-	EIMSK |= (_BV(INT0) | (_BV(INT1))); // enable INT2
-	EICRA |= (_BV(ISC01) | _BV(ISC00) | _BV(ISC11) | _BV(ISC10)); // rising edge interrupt	
+	EIMSK |= (_BV(INT0) | (_BV(INT1)) | (_BV(INT2))); // enable INT 0-2
+	EICRA |= (_BV(ISC01) | _BV(ISC00) | _BV(ISC11) | _BV(ISC10)); // rising edge interrupt for 0 and 1
+	EICRA |= _BV(ISC21);
 }

@@ -2,44 +2,46 @@
 
 #include "stepper.h" 
 #include "utils.h"
+#include "lcd.h"
 #include <avr/io.h>
 
 /*takes in last step number, degrees we want to turn, and the direction (0 = cw and 1 = ccw)
 and returns the last step we ran*/
-int rotate(int lastState, int stepsToRun, int dir) 
+void rotate(int stepsToRun, int dir) 
 {
 	//int stepsToRun = (int)deg/1.8; 
 	int stepsCount = 0;
-	int i = lastState;
+	int i = last_state;
 
 	while(stepsCount < stepsToRun)
 	{	
 		//increment or decrement i & handle overflow
 		if (dir == 0) //cw
 		{
-			i = (i+1)%4;
+			i = (i+1)%200;
 		} else if (dir == 1) //ccw
 		{
-			i = (i == 0) ? 3 : i - 1;
+			i = (i == 0) ? 199 : i - 1;
 		}
+		LCDWriteIntXY(5,0,(i%4),1);
 		
-		switch (i)
+		switch (i%4)
 		{
 			//assuming PORTA bits mean this: (e1,l1,l2,e2,l3,l4, zero, zero)
 			case 0:
-			  PORTA = 0b11000000;
+			  PORTA = 0b11011000;
 		      break;
 
 		    case 1:
-              PORTA = 0b00011000;
+              PORTA = 0b10111000;
 		      break;
 
 		    case 2:
-		      PORTA = 0b10100000;
+		      PORTA = 0b10110100;
 		      break;
 
 		    case 3:
-		      PORTA = 0b00010100;
+		      PORTA = 0b11010100;
 		      break;
 
 		    default:
@@ -50,10 +52,33 @@ int rotate(int lastState, int stepsToRun, int dir)
 		stepsCount++;
 		
 		//delay 20ms for coils to re magnetize
-		mTimer(20);
+		mTimer(10);
 	}//while
 	
-	lastState = i;
-	return lastState;
-
+	last_state = i;
 }//rotate
+
+void basic_align(cyl_t cyl_type)
+{	
+	int target;
+	switch (cyl_type)
+	{	
+		case BLACK:
+			target = 0;
+			break;
+			
+		case ALUM:
+			target = 50;
+			break;
+			
+		case WHITE:
+			target = 100;
+			break;
+			
+		case STEEL:
+			target = 150;
+			break;
+	}
+	rotate((target - last_state + 200)%200, 0);
+	PORTL = 0xff;
+}
