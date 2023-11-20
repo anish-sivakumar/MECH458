@@ -197,6 +197,10 @@ int main(int argc, char *argv[]){
 				{
 					LCDWriteIntXY(0,0,qHead->e.itemCode,1);
 				}
+				else
+				{
+				LCDWriteIntXY(0,0,4,1);
+				}
 				
 				// Hardcode a delay 
 				mTimer(1);
@@ -215,7 +219,7 @@ int main(int argc, char *argv[]){
 						-> Go to PAUSE
 					
 				*/
-				lq_pop(&qHead, &poppedLink);
+				lq_pop(&qHead, &qTail, &poppedLink);
 				basic_align(poppedLink->e.itemCode);
 				processedCount[poppedLink->e.itemCode]++;
 				LCDWriteIntXY(8,0,poppedLink->e.itemCode,1);

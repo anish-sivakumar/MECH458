@@ -82,12 +82,16 @@ void lq_push(link **h, link **t, link **nL){
 * 		 which the removed link will be assigned to
 */
 /* This will remove the link and element within the link from the head of the queue */
-void lq_pop(link **h, link **poppedLink){
+void lq_pop(link **h, link **t, link **poppedLink){
 	/* ENTER YOUR CODE HERE */
 	*poppedLink = *h;	// Will set to NULL if Head points to NULL
 	/* Ensure it is not an empty queue */
 	if (*h != NULL){
 		*h = (*h)->next;
+		/* If the Queue is now empty, reset the tail */
+		if (*h == NULL){
+			*t = NULL;
+		}
 	}/*if*/
 	
 	return;

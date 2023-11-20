@@ -32,9 +32,9 @@ void	initLink	(link **newLink);
 void 	lq_setup	(link **h, link **t);
 void 	lq_clear	(link **h, link **t);
 void 	lq_push		(link **h, link **t, link **nL);
-void 	lq_pop		(link **h, link **poppedLink);
+void	lq_pop		(link **h, link **t, link **poppedLink);
 element lq_first	(link **h);
-char 	lq_isEmpty		(link **h);
+char 	lq_isEmpty	(link **h);
 int 	lq_size		(link **h, link **t);
 
 #endif // LINKED_QUEUE_H_
