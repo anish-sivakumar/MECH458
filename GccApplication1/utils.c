@@ -16,10 +16,10 @@
 volatile unsigned int ADC_result_flag;
 
 // Calibration Settings
-#define BLACK_THRESH 995
-#define WHITE_THRESH 950
-#define STEEL_THRESH 900
-#define ALUM_THRESH 500
+#define BLACK_THRESH 970
+#define WHITE_THRESH 910
+#define STEEL_THRESH 600
+#define ALUM_THRESH 200
 uint16_t adc_total_min = 0;
 uint16_t adc_total_max = 0;
 
@@ -121,7 +121,7 @@ void adc_init()
 	
 	ADCSRA |= _BV(ADIE); // enable interrupt of ADC
 	
-	ADMUX |= _BV(ADLAR) | _BV(REFS0); // Read Technical Manual & Complete Comment
+	ADMUX |= _BV(REFS0); // Read Technical Manual & Complete Comment
 	
 	// make sure adc result flag is not set
 	ADC_result_flag = 0;
@@ -140,7 +140,7 @@ uint16_t adc_read()
 	ADC_result_flag = 0;
 	
 	// return the adc result
-	return (ADCW >> 6);
+	return ADCW;
 }
 
 //ISRs
@@ -152,7 +152,7 @@ ISR(ADC_vect)
 
 void EI_init()
 {
-	EIMSK |= (_BV(INT0) | (_BV(INT1)) | (_BV(INT2))); // enable INT 0-2
+	EIMSK |= (_BV(INT0 ) | _BV(INT1 ) | _BV(INT2 ) | _BV(INT3 )); // enable INT 0-3
 	EICRA |= (_BV(ISC01) | _BV(ISC00) | _BV(ISC11) | _BV(ISC10)); // rising edge interrupt for 0 and 1
-	EICRA |= _BV(ISC21);
+	EICRA |= (_BV(ISC21) | _BV(ISC31)); // falling edge for 0
 }

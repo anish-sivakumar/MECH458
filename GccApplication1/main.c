@@ -18,12 +18,13 @@
 #include "stepper.h"
 #include "dc_motor.h"
 #include "lcd.h"
+#include "linkedQueue.h"
 
 // Calibration mode enable switch, uncomment to calibrate system
 //#define CALIBRATION_MODE
 
 // Object detection threshold value
-#define OBJECT_THRESH 998
+#define OBJECT_THRESH 990
 
 typedef enum FSM_state
 {
@@ -46,15 +47,15 @@ int last_step = 0;
 
 // ADC classification variables
 uint16_t adc_val = 0;
-uint16_t adc_min = 0;
+uint16_t adc_min = 1024;
 int obj_detect = 0;
 cyl_t cyl_type = DISCARD;
 
-// Object queue variables
-cyl_t move_to;
-
 // Belt end detect flag
 volatile int end_detect = 0;
+
+// Hall effect flag
+volatile int heFlag = 0;
 
 // Rampdown flag
 volatile int rampdown = 0;
@@ -89,13 +90,27 @@ int main(int argc, char *argv[]){
 	// Re-enable all interrupts
 	sei();		
 	
+	// Set up LCD
+	InitLCD(LS_BLINK|LS_ULINE);
+	LCDClear();
+	
 	// Set defaults
 	motor_dir = forward;
 	motor_pwr = 1;
 	
-	// Set up LCD
-	InitLCD(LS_BLINK|LS_ULINE);
-	LCDClear();
+	// Object queue variables
+	link *qHead, *qTail;
+	link *newLink, *poppedLink;
+	cyl_t processedCount[4] = {};
+	lq_setup(&qHead, &qTail);	
+	
+	// calibrate the stepper
+	while(heFlag == 0)
+	{
+		rotate(1,0);
+	}
+	heFlag = 0;
+	resetPosition();
 	
 	///////////////////////////
 	// Main FSM control loop //
@@ -122,8 +137,7 @@ int main(int argc, char *argv[]){
 					If the object queue is empty and the rampdown flag has been set:
 						-> Go to END	
 				*/
-				motor_jog(forward,0x40);
-
+				motor_jog(forward,0x80);
 				
 				// Get ADC reading
 				adc_val = adc_read();
@@ -143,12 +157,19 @@ int main(int argc, char *argv[]){
 					// Object has finished passing through, process it
 					#ifdef CALIBRATION_MODE
 						display_calibration(adc_min);
+						
 					#else
 						cyl_type = get_cyl_type(adc_min);
-						if (cyl_type != DISCARD) 
-							move_to = cyl_type;
-						LCDWriteIntXY(0,0,cyl_type,1);
+						if (cyl_type != DISCARD)
+						{
+							LCDWriteIntXY(8,1,adc_min,4)
+							initLink(&newLink);
+							newLink->e.itemCode = cyl_type;
+							lq_push(&qHead, &qTail, &newLink);
+
+						}
 					#endif
+					
 					// Reset values
 					obj_detect = 0;
 					adc_min = 0xFFFF;
@@ -171,8 +192,14 @@ int main(int argc, char *argv[]){
 					state = END;
 				}
 				
+				// Print some debug stuff 
+				if (qHead != NULL)
+				{
+					LCDWriteIntXY(0,0,qHead->e.itemCode,1);
+				}
+				
 				// Hardcode a delay 
-				mTimer(10);
+				mTimer(1);
 				
 				break;
 			
@@ -188,7 +215,11 @@ int main(int argc, char *argv[]){
 						-> Go to PAUSE
 					
 				*/
-				basic_align(move_to);
+				lq_pop(&qHead, &poppedLink);
+				basic_align(poppedLink->e.itemCode);
+				processedCount[poppedLink->e.itemCode]++;
+				LCDWriteIntXY(8,0,poppedLink->e.itemCode,1);
+				free(poppedLink);
 				state = POLLING;
 
 				break;
@@ -245,11 +276,17 @@ ISR(INT1_vect)
 	}
 }
 
-//  end of belt detect
+// End of Belt Detect
 // There is probably a better way to do this transition, just keeping it simple for now
 
 ISR(INT2_vect)
 {
 	end_detect = 1;
+}
+
+// Hall-Effect Sensor for stepper calibration
+ISR(INT3_vect)
+{
+	heFlag = 1;
 }
 

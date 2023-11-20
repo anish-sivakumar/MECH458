@@ -7,6 +7,12 @@
 
 /*takes in last step number, degrees we want to turn, and the direction (0 = cw and 1 = ccw)
 and returns the last step we ran*/
+
+void resetPosition()
+{
+	last_state%=4;
+}
+
 void rotate(int stepsToRun, int dir) 
 {
 	//int stepsToRun = (int)deg/1.8; 
@@ -23,7 +29,6 @@ void rotate(int stepsToRun, int dir)
 		{
 			i = (i == 0) ? 199 : i - 1;
 		}
-		LCDWriteIntXY(5,0,(i%4),1);
 		
 		switch (i%4)
 		{
@@ -52,7 +57,7 @@ void rotate(int stepsToRun, int dir)
 		stepsCount++;
 		
 		//delay 20ms for coils to re magnetize
-		mTimer(10);
+		mTimer(12);
 	}//while
 	
 	last_state = i;
@@ -78,7 +83,9 @@ void basic_align(cyl_t cyl_type)
 		case STEEL:
 			target = 150;
 			break;
+			
+		case DISCARD: // something went wrong
+			return;
 	}
 	rotate((target - last_state + 200)%200, 0);
-	PORTL = 0xff;
 }
