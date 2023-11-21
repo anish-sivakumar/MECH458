@@ -57,7 +57,7 @@ void rotate(int stepsToRun, int dir)
 		stepsCount++;
 		
 		//delay 20ms for coils to re magnetize
-		mTimer(12);
+		mTimer(10);
 	}//while
 	
 	last_state = i;

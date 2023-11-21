@@ -21,10 +21,13 @@
 #include "linkedQueue.h"
 
 // Calibration mode enable switch, uncomment to calibrate system
-//#define CALIBRATION_MODE
+// #define CALIBRATION_MODE
 
 // Object detection threshold value
-#define OBJECT_THRESH 990
+#define OBJECT_THRESH 970
+
+// Object drop time parameters
+#define OBJECT_DROP_TIME 400
 
 typedef enum FSM_state
 {
@@ -46,8 +49,8 @@ volatile uint8_t pwm_setting = 0x80;
 int last_step = 0;
 
 // ADC classification variables
-uint16_t adc_val = 0;
-uint16_t adc_min = 1024;
+uint16_t adc_val = OBJECT_THRESH;
+uint16_t adc_min = OBJECT_THRESH;
 int obj_detect = 0;
 cyl_t cyl_type = DISCARD;
 
@@ -112,6 +115,11 @@ int main(int argc, char *argv[]){
 	heFlag = 0;
 	resetPosition();
 	
+	//try to avoid detecting garbage at start
+	motor_jog(forward,pwm_setting);
+	mTimer(1000);
+
+	
 	///////////////////////////
 	// Main FSM control loop //
 	///////////////////////////
@@ -137,7 +145,7 @@ int main(int argc, char *argv[]){
 					If the object queue is empty and the rampdown flag has been set:
 						-> Go to END	
 				*/
-				motor_jog(forward,0x80);
+				motor_jog(forward,pwm_setting);
 				
 				// Get ADC reading
 				adc_val = adc_read();
@@ -145,6 +153,7 @@ int main(int argc, char *argv[]){
 				// Object processing logic
 				if (adc_val < OBJECT_THRESH)
 				{
+					PORTL = 0xff;
 					// Were detecting an object
 					obj_detect = 1;
 					if (adc_val < adc_min)
@@ -177,6 +186,13 @@ int main(int argc, char *argv[]){
 				
 				LCDWriteIntXY(0,1,adc_val,5);
 				
+				// Check rampdown flag
+				if (rampdown)
+				{
+					state = END;
+				}
+				
+				#ifndef CALIBRATION_MODE
 				// Check end of belt flag
 				if (end_detect)
 				{
@@ -185,22 +201,20 @@ int main(int argc, char *argv[]){
 					end_detect = 0;
 					continue;
 				}
-
-				// Check rampdown flag
-				if (rampdown)
-				{
-					state = END;
-				}
 				
 				// Print some debug stuff 
+				LCDWriteIntXY(8,0,lq_size(&qHead,&qTail),1);
+
+				
 				if (qHead != NULL)
 				{
 					LCDWriteIntXY(0,0,qHead->e.itemCode,1);
 				}
 				else
 				{
-				LCDWriteIntXY(0,0,4,1);
+					LCDWriteIntXY(0,0,4,1);
 				}
+				#endif
 				
 				// Hardcode a delay 
 				mTimer(1);
@@ -222,8 +236,9 @@ int main(int argc, char *argv[]){
 				lq_pop(&qHead, &qTail, &poppedLink);
 				basic_align(poppedLink->e.itemCode);
 				processedCount[poppedLink->e.itemCode]++;
-				LCDWriteIntXY(8,0,poppedLink->e.itemCode,1);
+				LCDWriteIntXY(4,0,poppedLink->e.itemCode,1);
 				free(poppedLink);
+				motor_jog(motor_dir, pwm_setting);
 				state = POLLING;
 
 				break;
