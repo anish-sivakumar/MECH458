@@ -87,5 +87,13 @@ void basic_align(cyl_t cyl_type)
 		case DISCARD: // something went wrong
 			return;
 	}
-	rotate((target - last_state + 200)%200, 0);
+	int rotationCw= (target - last_state + 200)%200;
+	if (rotationCw <= 100) 
+	{
+		rotate(rotationCw, 0); // fastest is CW
+	}
+	else
+	{
+		rotate(200 - rotationCw, 1); // fastest is CCW
+	}
 }
