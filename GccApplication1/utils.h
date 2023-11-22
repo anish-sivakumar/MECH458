@@ -28,7 +28,8 @@ typedef enum cyl
 void displayCalibration(uint16_t adc_min);
 cyl_t getCylType(uint16_t adc_min);
 void debounceDelay();
-void mTimer(int count);
+void dTimer(uint32_t count);
+void mTimer(uint32_t count);
 void adcInit();
 uint16_t adcRead();
 

@@ -88,6 +88,7 @@ int main(int argc, char *argv[]){
 	cli();
 	
 	// Perform component initialization while interrupts are disabled	
+	mTimerInit();
 	pwmInit(); 
 	adcInit(); 
 	eiInit();
@@ -119,6 +120,9 @@ int main(int argc, char *argv[]){
 	///////////////////////////
 	// Main FSM control loop //
 	///////////////////////////
+	
+	state = STEPPER_CONTROL;
+	int k = 0;
 	
 	while(1)
 	{

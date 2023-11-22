@@ -9,6 +9,7 @@ int last_state;
 void resetPosition();
 
 void rotate(int deg, int dir);
+void rotateTrapezoid(int deg, int dir);
 
 void basicAlign(cyl_t cyl_type);
 

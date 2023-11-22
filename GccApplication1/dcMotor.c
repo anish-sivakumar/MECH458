@@ -37,7 +37,7 @@ void pwmSet(uint8_t compareVal)
 	OCR0A = compareVal; 
 }
 
-void motorJog(motorDir_t dir, uint8_t compare_val) //direction (ccw - fwd)
+void motorJog(motorDir_t dir, uint8_t compareVal) //direction (ccw - fwd)
 {
 	
 	//// break 5ms if were changing direction
@@ -51,7 +51,7 @@ void motorJog(motorDir_t dir, uint8_t compare_val) //direction (ccw - fwd)
 		//
 	//}
 	
-	pwmSet(compare_val);
+	pwmSet(compareVal);
 	//if (dir == forward)
 	//{
 
