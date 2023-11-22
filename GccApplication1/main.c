@@ -88,7 +88,7 @@ int main(int argc, char *argv[]){
 	cli();
 	
 	// Perform component initialization while interrupts are disabled	
-	mTimerInit();
+	timerInit();
 	pwmInit(); 
 	adcInit(); 
 	eiInit();

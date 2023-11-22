@@ -82,7 +82,7 @@ void debounceDelay()
 	return;
 }
 
-void TimerInit()
+void timerInit()
 {
 	TCCR1B	|= _BV(CS11); //set timer prescaler to 8. 8Mhz/8 = 1MHz timer freq
 	TCCR1B	|= _BV(WGM12); //CTC Mode with TOP being OCR1A value

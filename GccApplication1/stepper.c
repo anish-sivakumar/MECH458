@@ -70,7 +70,7 @@ void rotateTrapezoid(int stepsToRun, int dir)
 		      break;
 
 		    default:
-		     return -1; //something went wrong
+		     return; //something went wrong
 		
 		}//switch
 
@@ -115,9 +115,7 @@ void rotateTrapezoid(int stepsToRun, int dir)
 		
 		//calculate delay
 		delay = 10000/speed; //in 10ms
-		
-		//delay 20ms for coils to re magnetize
-		mTimer(10);
+		dTimer(delay);
 	}//while
 	
 	last_state = i;
@@ -160,14 +158,14 @@ void rotate(int stepsToRun, int dir)
 		      break;
 
 		    default:
-		     return -1; //something went wrong
+		     return; //something went wrong
 		
 		}//switch
 
 		stepsCount++;
 		
 		//delay 20ms for coils to re magnetize
-		mTimer(9);
+		mTimer(20);
 	}//while
 	
 	last_state = i;
@@ -197,7 +195,7 @@ void basicAlign(cyl_t cyl_type)
 		case DISCARD: // something went wrong
 			return;
 	}
-	int rotationCw= (target - last_state + 200)%200;
+	int rotationCw = (target - last_state + 200)%200;
 	if (rotationCw <= 100) 
 	{
 		rotate(rotationCw, 0); // fastest is CW
