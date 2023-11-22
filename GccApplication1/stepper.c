@@ -18,25 +18,38 @@ and returns the last step we ran*/
 
 void resetPosition()
 {
-	last_state%=4;
+	lastPos%=4;
 }
 
 void rotateTrapezoid(int stepsToRun, int dir) 
 {
 	int stepsCount = 0;
-	int i = last_state;
+	int i = lastStep;
 	int delay;
-	int speed = 45; //[30,100] steps/sec = 1/delay
+	
+	/*
+	int speed = 45; //steps/sec = 1/delay
 	
 	//profile parameters
 	int maxSpeed = 160; // 8.3ms delay
 	int minSpeed = 40;
 	int upRate = 6;
 	int downRate = 15;
+	*/
+	
+	
+	int speed = 90; //steps/sec = 1/delay
+	
+	//profile parameters
+	int maxSpeed = 280; // 8.3ms delay
+	int minSpeed = 80;
+	int upRate = 10;
+	int downRate = 30;
+	
 	
 	stepperPhase phase = UP;
 	
-	int constSteps = stepsToRun - 28; //28 based off maxSpeed = 160; minSpeed = 40;  upRate = 6;  downRate = 15;
+	int constSteps = stepsToRun - (maxSpeed-minSpeed)/upRate - (maxSpeed-minSpeed)/downRate; //28 based off maxSpeed = 160; minSpeed = 40;  upRate = 6;  downRate = 15;
 	int constCount = 0;
 	
 	while(stepsCount < stepsToRun)
@@ -44,13 +57,13 @@ void rotateTrapezoid(int stepsToRun, int dir)
 		//increment or decrement i & handle overflow
 		if (dir == 0) //cw
 		{
-			i = (i+1)%200;
+			i = (i+1)%4;
 		} else if (dir == 1) //ccw
 		{
-			i = (i == 0) ? 199 : i - 1;
+			i = (i == 0) ? 3 : i - 1;
 		}
 		
-		switch (i%4)
+		switch (i)
 		{
 			//assuming PORTA bits mean this: (e1,l1,l2,e2,l3,l4, zero, zero)
 			case 0:
@@ -118,27 +131,30 @@ void rotateTrapezoid(int stepsToRun, int dir)
 		dTimer(delay);
 	}//while
 	
-	last_state = i;
+	lastStep = i;
+	lastPos = dir ? 
+		((lastPos - stepsToRun + 200) % 200) : 
+		(lastPos + stepsToRun) % 200;
 }//rotate
 
 void rotate(int stepsToRun, int dir) 
 {
 	//int stepsToRun = (int)deg/1.8; 
 	int stepsCount = 0;
-	int i = last_state;
+	int i = lastPos;
 
 	while(stepsCount < stepsToRun)
 	{	
 		//increment or decrement i & handle overflow
 		if (dir == 0) //cw
 		{
-			i = (i+1)%200;
+			i = (i+1)%4;
 		} else if (dir == 1) //ccw
 		{
-			i = (i == 0) ? 199 : i - 1;
+			i = (i == 0) ? 3 : i - 1;
 		}
 		
-		switch (i%4)
+		switch (i)
 		{
 			//assuming PORTA bits mean this: (e1,l1,l2,e2,l3,l4, zero, zero)
 			case 0:
@@ -164,11 +180,14 @@ void rotate(int stepsToRun, int dir)
 
 		stepsCount++;
 		
-		//delay 20ms for coils to re magnetize
+		//delay for coils to re magnetize
 		mTimer(20);
 	}//while
-	
-	last_state = i;
+		
+	lastStep = i;
+	lastPos = dir ?
+		((lastPos - stepsToRun + 200) % 200) :
+		(lastPos + stepsToRun) % 200;
 }//rotate
 
 void basicAlign(cyl_t cyl_type)
@@ -195,13 +214,13 @@ void basicAlign(cyl_t cyl_type)
 		case DISCARD: // something went wrong
 			return;
 	}
-	int rotationCw = (target - last_state + 200)%200;
+	int rotationCw = (target - lastPos + 200)%200;
 	if (rotationCw <= 100) 
 	{
-		rotate(rotationCw, 0); // fastest is CW
+		rotateTrapezoid(rotationCw, 0); // fastest is CW
 	}
 	else
 	{
-		rotate(200 - rotationCw, 1); // fastest is CCW
+		rotateTrapezoid(200 - rotationCw, 1); // fastest is CCW
 	}
 }

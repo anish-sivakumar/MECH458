@@ -4,7 +4,8 @@
 
 #include "utils.h"
 
-int last_state;
+int lastPos;
+int lastStep;
 
 void resetPosition();
 

@@ -82,6 +82,7 @@ int main(int argc, char *argv[]){
 	PORTC = 0x00; 
 		
 	// slow clock to 8MHz
+	CLKPR = 0x80;
 	CLKPR = 0x01; 
 	
 	// Disable all interrupts
@@ -120,9 +121,7 @@ int main(int argc, char *argv[]){
 	///////////////////////////
 	// Main FSM control loop //
 	///////////////////////////
-	
-	state = STEPPER_CONTROL;
-	int k = 0;
+
 	
 	while(1)
 	{
