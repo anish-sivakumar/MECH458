@@ -16,14 +16,14 @@
 volatile unsigned int ADC_result_flag;
 
 // Calibration Settings
-#define BLACK_THRESH 980
+#define BLACK_THRESH 968
 #define WHITE_THRESH 940
 #define STEEL_THRESH 850
-#define ALUM_THRESH 300
+#define ALUM_THRESH 400
 uint16_t adc_total_min = 0;
 uint16_t adc_total_max = 0;
 
-void display_calibration(uint16_t adc_min)
+void displayCalibration(uint16_t adc_min)
 {
 	// If this is the first pass, set both total min and total max
 	if(adc_total_min == 0 && adc_total_max == 0)
@@ -44,7 +44,7 @@ void display_calibration(uint16_t adc_min)
 	LCDWriteIntXY(6,0,adc_total_min,5);
 }
 
-cyl_t get_cyl_type(uint16_t adc_min)
+cyl_t getCylType(uint16_t adc_min)
 {
 	if (adc_min < ALUM_THRESH)
 	{
@@ -113,7 +113,9 @@ void mTimer(int count)
 	}
 }
 
-void adc_init()
+
+
+void adcInit()
 {	
 	// config ADC 
 	// by default, the ADC input (analog input is set to be ADC0 / PORTF0
@@ -127,7 +129,7 @@ void adc_init()
 	ADC_result_flag = 0;
 }
 
-uint16_t adc_read()
+uint16_t adcRead()
 {
 	
 	// trigger ADC read
@@ -150,9 +152,9 @@ ISR(ADC_vect)
 	ADC_result_flag = 1;
 }
 
-void EI_init()
+void eiInit()
 {
 	EIMSK |= (_BV(INT0 ) | _BV(INT1 ) | _BV(INT2 ) | _BV(INT3 )); // enable INT 0-3
 	EICRA |= (_BV(ISC01) | _BV(ISC00) | _BV(ISC11) | _BV(ISC10)); // rising edge interrupt for 0 and 1
-	EICRA |= (_BV(ISC21) | _BV(ISC31)); // falling edge for 0
+	EICRA |= (_BV(ISC21) | _BV(ISC31)); // falling edge for 2 and 3
 }

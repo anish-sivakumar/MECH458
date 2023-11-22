@@ -4,7 +4,7 @@
 
 /* Type definitions */
 typedef struct {
-	char itemCode; 	/* stores a number describing the element */
+	int itemCode; 	/* stores a number describing the element */
 } element;
 
 typedef struct link{
@@ -29,13 +29,13 @@ typedef struct link{
 //MAKE sure there are semi colons at the end of these if you change them!!!
 
 void	initLink	(link **newLink);
-void 	lq_setup	(link **h, link **t);
-void 	lq_clear	(link **h, link **t);
-void 	lq_push		(link **h, link **t, link **nL);
-void	lq_pop		(link **h, link **t, link **poppedLink);
-element lq_first	(link **h);
-char 	lq_isEmpty	(link **h);
-int 	lq_size		(link **h, link **t);
+void 	lqSetup		(link **h, link **t);
+void 	lqClear		(link **h, link **t);
+void 	lqPush		(link **h, link **t, link **nL);
+void	lqPop		(link **h, link **t, link **poppedLink);
+element lqFirst		(link **h);
+char 	lqIsEmpty	(link **h);
+int 	lqSize		(link **h, link **t);
 
 #endif // LINKED_QUEUE_H_
 

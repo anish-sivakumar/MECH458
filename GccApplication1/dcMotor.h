@@ -11,20 +11,18 @@
 #ifndef DC_MOTOR_H_
 #define DC_MOTOR_H_
 
-typedef enum motor_dir
+typedef enum motorDir
 {
 	forward,
 	reverse,
 	brake,
 	invalid
-}motor_dir_t;
+}motorDir_t;
 
-void pwm_init();
-void pwm_set(uint8_t compare_val);
+void pwmInit();
+void pwmSet(uint8_t compareVal);
 
-void motor_jog(motor_dir_t dir, uint8_t compare_val);
-void motor_brake();
-
-void getDirectionStr(char* str, motor_dir_t dir);
+void motorJog(motorDir_t dir, uint8_t compareVal);
+void motorBrake();
 
 #endif /* DC_MOTOR_H_ */

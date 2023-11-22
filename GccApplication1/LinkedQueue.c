@@ -27,7 +27,7 @@
 * INPUT: the head and tail pointers by reference
 */
 
-void lq_setup(link **h,link **t){
+void lqSetup(link **h,link **t){
 	*h = NULL;		/* Point the head to NOTHING (NULL) */
 	*t = NULL;		/* Point the tail to NOTHING (NULL) */
 	return;
@@ -56,7 +56,7 @@ void initLink(link **newLink){
 *  INPUT: the head and tail pointers, and a pointer to the new link that was created 
 */
 /* will put an item at the tail of the queue */
-void lq_push(link **h, link **t, link **nL){
+void lqPush(link **h, link **t, link **nL){
 
 	if (*t != NULL){
 		/* Not an empty queue */
@@ -82,7 +82,7 @@ void lq_push(link **h, link **t, link **nL){
 * 		 which the removed link will be assigned to
 */
 /* This will remove the link and element within the link from the head of the queue */
-void lq_pop(link **h, link **t, link **poppedLink){
+void lqPop(link **h, link **t, link **poppedLink){
 	/* ENTER YOUR CODE HERE */
 	*poppedLink = *h;	// Will set to NULL if Head points to NULL
 	/* Ensure it is not an empty queue */
@@ -106,7 +106,7 @@ void lq_pop(link **h, link **t, link **poppedLink){
 * RETURNS: The element contained within the queue
 */
 /* This simply allows you to peek at the head element of the queue and returns a NULL pointer if empty */
-element lq_first(link **h){
+element lqFirst(link **h){
 	return((*h)->e);
 }/*lq_first*/
 
@@ -119,7 +119,7 @@ element lq_first(link **h){
 * INPUT: the pointers to the head and the tail
 */
 /* This clears the queue */
-void lq_clear(link **h, link **t){
+void lqClear(link **h, link **t){
 
 	link *temp;
 
@@ -145,7 +145,7 @@ void lq_clear(link **h, link **t){
 * RETURNS: 1:if the queue is empty, and 0:if the queue is NOT empty
 */
 /* Check to see if the queue is empty */
-char lq_isEmpty(link **h){
+char lqIsEmpty(link **h){
 	/* ENTER YOUR CODE HERE */
 	return(*h == NULL);
 }/*lq_isEmpty*/
@@ -160,7 +160,7 @@ char lq_isEmpty(link **h){
 * RETURNS: An integer with the number of links in the queue
 */
 /* returns the size of the queue*/
-int lq_size(link **h, link **t){
+int lqSize(link **h, link **t){
 
 	link 	*temp;			/* will store the link while traversing the queue */
 	int 	numElements;

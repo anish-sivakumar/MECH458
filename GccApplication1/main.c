@@ -3,7 +3,7 @@
 # GROUP: 3
 # NAME 1: First Name, Last Name, Student ID
 # NAME 2: First Name, Last Name, Student ID
-# DESC: This program does… [write out a brief summary]
+# DESC: This program doesï¿½ [write out a brief summary]
 # DATA
 # REVISED ############################################################### */
 
@@ -16,7 +16,7 @@
 // Custom includes
 #include "utils.h"
 #include "stepper.h"
-#include "dc_motor.h"
+#include "dcMotor.h"
 #include "lcd.h"
 #include "linkedQueue.h"
 
@@ -41,27 +41,29 @@ typedef enum FSM_state
 FSM_state_t state = POLLING;
 
 // Motor settings
-volatile motor_dir_t motor_dir;
-volatile int motor_pwr; //1 is on, 0 is off
-volatile uint8_t pwm_setting = 0x80;
+volatile motorDir_t motorDir;
+volatile uint8_t motorPwm = 0x90;
 
 // Stepper settings
-int last_step = 0;
+int stepperLastPos = 0;
 
 // ADC classification variables
-uint16_t adc_val = OBJECT_THRESH;
-uint16_t adc_min = OBJECT_THRESH;
-int obj_detect = 0;
-cyl_t cyl_type = DISCARD;
+uint16_t adcVal = OBJECT_THRESH;
+uint16_t adcMin = OBJECT_THRESH;
+int objDetect = 0;
+cyl_t cylType = DISCARD;
 
 // Belt end detect flag
-volatile int end_detect = 0;
+volatile int edFlag = 0;
 
 // Hall effect flag
 volatile int heFlag = 0;
 
 // Rampdown flag
-volatile int rampdown = 0;
+volatile int rdFlag = 0;
+
+// Pause flag
+volatile int pFlag = 0;
 
 /* ################## MAIN ROUTINE ################## */
 
@@ -86,9 +88,9 @@ int main(int argc, char *argv[]){
 	cli();
 	
 	// Perform component initialization while interrupts are disabled	
-	pwm_init(); 
-	adc_init(); 
-	EI_init();
+	pwmInit(); 
+	adcInit(); 
+	eiInit();
 	
 	// Re-enable all interrupts
 	sei();		
@@ -98,14 +100,13 @@ int main(int argc, char *argv[]){
 	LCDClear();
 	
 	// Set defaults
-	motor_dir = forward;
-	motor_pwr = 1;
+	motorDir = forward;
 	
 	// Object queue variables
 	link *qHead, *qTail;
 	link *newLink, *poppedLink;
 	cyl_t processedCount[4] = {};
-	lq_setup(&qHead, &qTail);	
+	lqSetup(&qHead, &qTail);	
 	
 	// calibrate the stepper
 	while(heFlag == 0)
@@ -114,11 +115,6 @@ int main(int argc, char *argv[]){
 	}
 	heFlag = 0;
 	resetPosition();
-	
-	//try to avoid detecting garbage at start
-	motor_jog(forward,pwm_setting);
-	mTimer(1000);
-
 	
 	///////////////////////////
 	// Main FSM control loop //
@@ -145,66 +141,70 @@ int main(int argc, char *argv[]){
 					If the object queue is empty and the rampdown flag has been set:
 						-> Go to END	
 				*/
-				motor_jog(forward,pwm_setting);
+				motorJog(forward,motorPwm);
 				
 				// Get ADC reading
-				adc_val = adc_read();
+				adcVal = adcRead();
 				
 				// Object processing logic
-				if (adc_val < OBJECT_THRESH)
+				if (adcVal < OBJECT_THRESH)
 				{
-					PORTL = 0xff;
 					// Were detecting an object
-					obj_detect = 1;
-					if (adc_val < adc_min)
+					objDetect = 1;
+					if (adcVal < adcMin)
 					{
-						adc_min = adc_val;
+						adcMin = adcVal;
 					}
 				}
-				else if (obj_detect)
+				else if (objDetect)
 				{
 					// Object has finished passing through, process it
 					#ifdef CALIBRATION_MODE
-						display_calibration(adc_min);
+						displayCalibration(adcMin);
 						
 					#else
-						cyl_type = get_cyl_type(adc_min);
-						if (cyl_type != DISCARD)
+						cylType = getCylType(adcMin);
+						if (cylType != DISCARD)
 						{
-							LCDWriteIntXY(8,1,adc_min,4)
+							LCDWriteIntXY(8,1,adcMin,4)
 							initLink(&newLink);
-							newLink->e.itemCode = cyl_type;
-							lq_push(&qHead, &qTail, &newLink);
+							newLink->e.itemCode = cylType;
+							lqPush(&qHead, &qTail, &newLink);
 
 						}
 					#endif
 					
 					// Reset values
-					obj_detect = 0;
-					adc_min = 0xFFFF;
+					objDetect = 0;
+					adcMin = 0xFFFF;
 				}
 				
-				LCDWriteIntXY(0,1,adc_val,5);
+				LCDWriteIntXY(0,1,adcVal,5);
 				
 				// Check rampdown flag
-				if (rampdown)
+				if (rdFlag)
 				{
-					state = END;
+					LCDWriteStringXY(12,0,"RDWN");
+					if (lqIsEmpty(&qHead))
+					{
+						// Wait a bit to let the last piece fall
+						mTimer(300);
+						state = END;
+					}
 				}
 				
 				#ifndef CALIBRATION_MODE
 				// Check end of belt flag
-				if (end_detect)
+				if (edFlag)
 				{
 					state = STEPPER_CONTROL;
-					motor_brake();
-					end_detect = 0;
+					motorBrake();
+					edFlag = 0;
 					continue;
 				}
 				
 				// Print some debug stuff 
-				LCDWriteIntXY(8,0,lq_size(&qHead,&qTail),1);
-
+				LCDWriteIntXY(8,0,lqSize(&qHead,&qTail),1);
 				
 				if (qHead != NULL)
 				{
@@ -231,16 +231,15 @@ int main(int argc, char *argv[]){
 						-> Go to POLLING
 					If the pause button is pressed:
 						-> Go to PAUSE
-					
 				*/
-				lq_pop(&qHead, &qTail, &poppedLink);
-				basic_align(poppedLink->e.itemCode);
+				
+				lqPop(&qHead, &qTail, &poppedLink);
+				basicAlign(poppedLink->e.itemCode);
 				processedCount[poppedLink->e.itemCode]++;
 				LCDWriteIntXY(4,0,poppedLink->e.itemCode,1);
 				free(poppedLink);
-				motor_jog(motor_dir, pwm_setting);
+				motorJog(motorDir, motorPwm);
 				state = POLLING;
-
 				break;
 				
 			case PAUSE:
@@ -261,38 +260,29 @@ int main(int argc, char *argv[]){
 				/*
 					In this state, motors are turned off and the program terminates.
 				*/
-				
-				motor_brake();
-				return (0); 
-			
+				motorBrake();
+				LCDClear();
+				LCDWriteStringXY(0,0,"BL: WH: AL: ST:");
+				LCDWriteIntXY(0 ,1,processedCount[BLACK],3);
+				LCDWriteIntXY(4 ,1,processedCount[WHITE],3);
+				LCDWriteIntXY(8 ,1,processedCount[ALUM ],3);
+				LCDWriteIntXY(12,1,processedCount[STEEL],3);
+				return (0); 	
 		}
-		
 	}
 	return (0); 
-
 }
-
-
 
 //  switch 0 - rampdown
 ISR(INT0_vect)
 { 
-	rampdown = 1;
+	rdFlag = 1;
 }
 
-//  switch 1 - on/off
+//  switch 1 - pause
 ISR(INT1_vect)
-{ // when there is a rising edge
-	if (motor_pwr == 0)
-	{
-		motor_jog(forward, pwm_setting);
-		motor_pwr = 1;
-	} 
-	else if (motor_pwr == 1)
-	{
-		motor_brake();
-		motor_pwr = 0;
-	}
+{ 
+	pFlag = 1;
 }
 
 // End of Belt Detect
@@ -300,10 +290,11 @@ ISR(INT1_vect)
 
 ISR(INT2_vect)
 {
-	end_detect = 1;
+	edFlag = 1;
 }
 
 // Hall-Effect Sensor for stepper calibration
+
 ISR(INT3_vect)
 {
 	heFlag = 1;

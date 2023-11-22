@@ -57,13 +57,13 @@ void rotate(int stepsToRun, int dir)
 		stepsCount++;
 		
 		//delay 20ms for coils to re magnetize
-		mTimer(10);
+		mTimer(9);
 	}//while
 	
 	last_state = i;
 }//rotate
 
-void basic_align(cyl_t cyl_type)
+void basicAlign(cyl_t cyl_type)
 {	
 	int target;
 	switch (cyl_type)

@@ -8,7 +8,7 @@
 #ifndef UTILS_H_
 #define UTILS_H_
 
-#include "dc_motor.h"
+#include "dcMotor.h"
 
 typedef enum shiftDir
 {
@@ -25,11 +25,11 @@ typedef enum cyl
 	DISCARD // invalid object detected
 }cyl_t;
 
-void display_calibration(uint16_t adc_min);
-cyl_t get_cyl_type(uint16_t adc_min);
+void displayCalibration(uint16_t adc_min);
+cyl_t getCylType(uint16_t adc_min);
 void debounceDelay();
 void mTimer(int count);
-void adc_init();
-uint16_t adc_read();
+void adcInit();
+uint16_t adcRead();
 
 #endif /* UTILS_H_ */

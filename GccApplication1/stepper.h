@@ -10,7 +10,7 @@ void resetPosition();
 
 void rotate(int deg, int dir);
 
-void basic_align(cyl_t cyl_type);
+void basicAlign(cyl_t cyl_type);
 
 
 #endif /* STEPPER_H_ */

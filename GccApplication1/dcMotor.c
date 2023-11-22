@@ -7,12 +7,12 @@
 
 #include <avr/io.h> // the header of I/O port
 
-#include "dc_motor.h"
+#include "dcMotor.h"
 #include "utils.h"
 
-motor_dir_t current_dir; // global to store direction
+motorDir_t current_dir; // global to store direction
 
-void pwm_init()
+void pwmInit()
 {
 	  // Configure TCCR0A and TCCR0B registers for fast PWM mode with TOP = 0xFF (255)
 	  TCCR0A = (1 << WGM01) | (1 << WGM00);
@@ -31,13 +31,13 @@ void pwm_init()
 
 }
 
-void pwm_set(uint8_t compare_val)
+void pwmSet(uint8_t compareVal)
 {
 	// Set the value of Output Compare Register A (OCRA) for the provided duty cycle
-	OCR0A = compare_val; 
+	OCR0A = compareVal; 
 }
 
-void motor_jog(motor_dir_t dir, uint8_t compare_val) //direction (ccw - fwd)
+void motorJog(motorDir_t dir, uint8_t compare_val) //direction (ccw - fwd)
 {
 	
 	//// break 5ms if were changing direction
@@ -51,7 +51,7 @@ void motor_jog(motor_dir_t dir, uint8_t compare_val) //direction (ccw - fwd)
 		//
 	//}
 	
-	pwm_set(compare_val);
+	pwmSet(compare_val);
 	//if (dir == forward)
 	//{
 
@@ -67,26 +67,8 @@ void motor_jog(motor_dir_t dir, uint8_t compare_val) //direction (ccw - fwd)
 	
 }
 
-void motor_brake() //break HI
+void motorBrake() //break HI
 {
 	PORTB = (PORTB & 0b11110000) | 0b00001111;	//INa/INb = 1/1 enables HI
 }
 
-
-void getDirectionStr(char* str, motor_dir_t dir)
-{
-	switch (dir)
-	{
-		case forward:
-			*str = "forward";
-			return;
-			
-		case reverse:
-			*str = "reverse";
-			return;
-			
-		default:
-			return;
-	}
-	
-}
