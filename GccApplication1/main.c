@@ -238,6 +238,7 @@ int main(int argc, char *argv[]){
 				
 				lqPop(&qHead, &qTail, &poppedLink);
 				basicAlign(poppedLink->e.itemCode);
+			
 				processedCount[poppedLink->e.itemCode]++;
 				LCDWriteIntXY(4,0,poppedLink->e.itemCode,1);
 				free(poppedLink);

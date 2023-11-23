@@ -3,12 +3,15 @@
 #include "stepper.h" 
 #include "utils.h"
 #include "lcd.h"
+#include "linkedQueue.h"
 #include <avr/io.h>
 
 typedef enum stepperPhase
 {
 	UP,
+	UPROUND,
 	DOWN,
+	DOWNROUND,
 	HI,
 	LO
 }stepperPhase;
@@ -38,18 +41,20 @@ void rotateTrapezoid(int stepsToRun, int dir)
 	*/
 	
 	
-	int speed = 90; //steps/sec = 1/delay
+	int speed = 90; // steps/sec = 1/delay
 	
 	//profile parameters
-	int maxSpeed = 280; // 8.3ms delay
+	int maxSpeed = 220; // 8.3ms delay
 	int minSpeed = 80;
 	int upRate = 10;
 	int downRate = 30;
-	
+	int upRateRound = 0; // amount to decrease upRate by (the value is ++ to damp)
+	int downRateRound = downRate - 5; //amount to decrease downRate by (the value is -- to accel)
+	int cornerSpeed = maxSpeed - 40;
 	
 	stepperPhase phase = UP;
 	
-	int constSteps = stepsToRun - (maxSpeed-minSpeed)/upRate - (maxSpeed-minSpeed)/downRate; //28 based off maxSpeed = 160; minSpeed = 40;  upRate = 6;  downRate = 15;
+	int constSteps = stepsToRun - (maxSpeed-minSpeed)/upRate - (maxSpeed-minSpeed)/downRate - 6; //
 	int constCount = 0;
 	
 	while(stepsCount < stepsToRun)
@@ -83,7 +88,7 @@ void rotateTrapezoid(int stepsToRun, int dir)
 		      break;
 
 		    default:
-		     return; //something went wrong
+				return; //something went wrong
 		
 		}//switch
 
@@ -95,12 +100,54 @@ void rotateTrapezoid(int stepsToRun, int dir)
 				speed = speed + upRate;
 				
 				//exit
+				if (speed >= cornerSpeed)
+				{
+					phase = UPROUND;
+				}
+				
+				break;
+			
+			case UPROUND:
+				upRateRound = upRateRound + 1;
+				
+				if (upRate - upRateRound <= 3){ //so we don't decelerate to slowly
+					upRateRound = upRate - 3;					
+				}
+				
+				speed = speed + (upRate - upRateRound);
+								
+				//exit
 				if (speed >= maxSpeed)
 				{
 					phase = HI;
 				}
 				
 				break;
+		
+			case HI:
+				speed = maxSpeed;
+				constCount++;
+			
+				//exit
+				if (constCount >= constSteps)
+				{
+					phase = DOWN;
+				}
+				break;
+			
+			case DOWNROUND:
+				downRateRound = downRateRound - 3;
+								
+				speed = speed - (downRate - downRateRound);
+				
+				//exit
+				if (speed <= cornerSpeed) //until we hit downRate
+				{ 
+					phase = DOWN;
+				}
+				
+				break;
+			
 			case DOWN:
 				speed = speed - downRate;
 				
@@ -111,16 +158,7 @@ void rotateTrapezoid(int stepsToRun, int dir)
 				}
 				
 				break;	
-			case HI:
-				speed = maxSpeed;
-				constCount++;
-				
-				//exit
-				if (constCount >= constSteps)
-				{
-					phase = DOWN;
-				}
-				break;
+			
 			case LO:
 				//low speed until steps are complete
 				break;
@@ -132,9 +170,7 @@ void rotateTrapezoid(int stepsToRun, int dir)
 	}//while
 	
 	lastStep = i;
-	lastPos = dir ? 
-		((lastPos - stepsToRun + 200) % 200) : 
-		(lastPos + stepsToRun) % 200;
+	lastPos = dir ? ((lastPos - stepsToRun + 200) % 200) : (lastPos + stepsToRun) % 200;
 }//rotate
 
 void rotate(int stepsToRun, int dir) 
@@ -224,3 +260,114 @@ void basicAlign(cyl_t cyl_type)
 		rotateTrapezoid(200 - rotationCw, 1); // fastest is CCW
 	}
 }
+
+void smartAlign(cyl_t firstCyl, link **h, link **t)
+{
+	int target;
+	int secTarget;
+	int exitSpeed;
+	int exitPos;
+	int prevDir;
+	int rotationCw;
+	int secRotationCw;
+	int dir;
+	int secDir;
+	int stepsToTarget;
+	int stepsToRun;
+	
+	
+	cyl_t secCyl = (*h)->e.itemCode;
+	cyl_t thirdCyl = (*h)->next->e.itemCode;
+	
+	
+	// assign position to type
+	switch (firstCyl)
+	{
+		case BLACK:
+		target = 0;
+		break;
+		
+		case ALUM:
+		target = 50;
+		break;
+		
+		case WHITE:
+		target = 100;
+		break;
+		
+		case STEEL:
+		target = 150;
+		break;
+		
+		case DISCARD: // something went wrong
+		return;
+	}
+	
+	// assign position to type
+	switch (secCyl)
+	{
+		case BLACK:
+		secTarget = 0;
+		break;
+		
+		case ALUM:
+		secTarget = 50;
+		break;
+		
+		case WHITE:
+		secTarget = 100;
+		break;
+		
+		case STEEL:
+		secTarget = 150;
+		break;
+		
+		case DISCARD: // something went wrong
+		return;
+	}
+	
+	rotationCw = (target - lastPos + 200)%200; 
+	
+	//determine direction and steps to turn
+	if (rotationCw <= 100)
+	{
+		stepsToTarget = rotationCw;
+		dir = 0;
+		secRotationCw = (secTarget - (lastPos + stepsToTarget) + 200)%200; // number to steps to second target
+	}
+	else
+	{
+		stepsToTarget = 200 - rotationCw;
+		dir = 1;
+		secRotationCw = (secTarget - (lastPos - stepsToTarget) + 200)%200; // number to steps to second target
+	}
+	
+	secDir = (secRotationCw > 100); // find second direction
+		
+	// determine arguments to rotate function
+	if (dir == secDir) 
+	{
+		
+		if (dir == 0) // if going CW twice
+		{
+			stepsToRun = stepsToTarget - 25;
+		} else 
+		{
+			stepsToRun = stepsToTarget + 25;
+		}
+		
+		// determine exit speed
+		if (thirdCyl == secCyl) // if the second and third objects are the same, slow exitSpeed
+		{
+			exitSpeed = 555; // PLACEHOLDER
+		} else { 
+			exitSpeed = 999; // PLACEHOLDER
+		}
+	} else
+	{
+		exitSpeed = 0;
+	}
+	
+	rotate(stepsToRun, dir); // and exitSpeed
+}
+
