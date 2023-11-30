@@ -169,7 +169,7 @@ int main(int argc, char *argv[]){
 						cylType = getCylType(adcMin);
 						if (cylType != DISCARD)
 						{
-							LCDWriteIntXY(8,1,adcMin,4)
+							//LCDWriteIntXY(8,1,adcMin,4)
 							initLink(&newLink);
 							newLink->e.itemCode = cylType;
 							lqPush(&qHead, &qTail, &newLink);
@@ -182,7 +182,7 @@ int main(int argc, char *argv[]){
 					adcMin = 0xFFFF;
 				}
 				
-				LCDWriteIntXY(0,1,adcVal,5);
+				//LCDWriteIntXY(0,1,adcVal,5);
 				
 				// Check rampdown flag
 				if (rdFlag)
@@ -237,10 +237,10 @@ int main(int argc, char *argv[]){
 				*/
 				
 				lqPop(&qHead, &qTail, &poppedLink);
-				basicAlign(poppedLink->e.itemCode);
+				smartAlign(poppedLink->e.itemCode); //testing smartAlign
 			
 				processedCount[poppedLink->e.itemCode]++;
-				LCDWriteIntXY(4,0,poppedLink->e.itemCode,1);
+				//LCDWriteIntXY(4,0,poppedLink->e.itemCode,1);
 				free(poppedLink);
 				motorJog(motorDir, motorPwm);
 				state = POLLING;

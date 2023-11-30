@@ -17,7 +17,7 @@ volatile unsigned int ADC_result_flag;
 
 // Calibration Settings
 #define BLACK_THRESH 968
-#define WHITE_THRESH 944
+#define WHITE_THRESH 960
 #define STEEL_THRESH 850
 #define ALUM_THRESH 400
 uint16_t adc_total_min = 0;

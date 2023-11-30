@@ -274,10 +274,10 @@ void smartAlign(cyl_t firstCyl, link **h, link **t)
 	int secDir;
 	int stepsToTarget;
 	int stepsToRun;
+	cyl_t secCyl;
 	
-	
-	cyl_t secCyl = (*h)->e.itemCode;
-	cyl_t thirdCyl = (*h)->next->e.itemCode;
+		
+	//cyl_t thirdCyl = (*h)->next->e.itemCode;
 	
 	
 	// assign position to type
@@ -303,28 +303,37 @@ void smartAlign(cyl_t firstCyl, link **h, link **t)
 		return;
 	}
 	
-	// assign position to type
-	switch (secCyl)
+	int qSize = lqSize(h,t);
+	if (qSize >= 1)
 	{
-		case BLACK:
-		secTarget = 0;
-		break;
 		
-		case ALUM:
-		secTarget = 50;
-		break;
+		secCyl = (*h)->e.itemCode;
 		
-		case WHITE:
-		secTarget = 100;
-		break;
+		// assign position to type
+		switch (secCyl)
+		{
+			case BLACK:
+			secTarget = 0;
+			break;
+			
+			case ALUM:
+			secTarget = 50;
+			break;
+			
+			case WHITE:
+			secTarget = 100;
+			break;
+			
+			case STEEL:
+			secTarget = 150;
+			break;
+			
+			case DISCARD: // something went wrong
+			return;
+		}
 		
-		case STEEL:
-		secTarget = 150;
-		break;
-		
-		case DISCARD: // something went wrong
-		return;
 	}
+	
 	
 	rotationCw = (target - lastPos + 200)%200; 
 	
@@ -332,30 +341,57 @@ void smartAlign(cyl_t firstCyl, link **h, link **t)
 	if (rotationCw <= 100)
 	{
 		stepsToTarget = rotationCw;
+		stepsToRun = stepsToTarget;
 		dir = 0;
-		secRotationCw = (secTarget - (lastPos + stepsToTarget) + 200)%200; // number to steps to second target
+		
+		if(qSize >= 1)
+		{
+			secRotationCw = (secTarget - (lastPos + stepsToTarget)%200 + 200)%200; // number to steps to second target
+		}
 	}
 	else
 	{
 		stepsToTarget = 200 - rotationCw;
+		stepsToRun = stepsToTarget;
 		dir = 1;
-		secRotationCw = (secTarget - (lastPos - stepsToTarget) + 200)%200; // number to steps to second target
+		
+		if(qSize >= 1)
+		{
+			secRotationCw = (secTarget - (lastPos - stepsToTarget) + 200)%200; // number to steps to second target
+		}
 	}
 	
-	secDir = (secRotationCw > 100); // find second direction
+	if(qSize >= 1)
+	{
+		if (secRotationCw <= 100)
+		{
+			secDir = 0;
+		}
+		else
+		{
+			secDir = 1;
+		}
+	}
+	
+	  
+	LCDWriteIntXY(0,1,dir,1); //000
+	LCDWriteIntXY(5,1,secDir,1); //682
 		
 	// determine arguments to rotate function
-	if (dir == secDir) 
+	if (dir == secDir && qSize >=1) 
 	{
 		
 		if (dir == 0) // if going CW twice
 		{
-			stepsToRun = stepsToTarget - 25;
+			stepsToRun = stepsToTarget; //-25
 		} else 
 		{
-			stepsToRun = stepsToTarget + 25;
+			stepsToRun = stepsToTarget; //+25
 		}
 		
+		exitSpeed = 999; // PLACEHOLDER
+		
+		/*
 		// determine exit speed
 		if (thirdCyl == secCyl) // if the second and third objects are the same, slow exitSpeed
 		{
@@ -363,10 +399,16 @@ void smartAlign(cyl_t firstCyl, link **h, link **t)
 		} else { 
 			exitSpeed = 999; // PLACEHOLDER
 		}
+		*/
+		
 	} else
 	{
 		exitSpeed = 0;
 	}
+	
+	//LCDWriteIntXY(0,1,exitSpeed,3); //000
+	//LCDWriteIntXY(5,1,stepsToRun,3); //682
+	
 	
 	rotate(stepsToRun, dir); // and exitSpeed
 }
