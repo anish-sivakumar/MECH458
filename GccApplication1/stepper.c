@@ -100,7 +100,7 @@ void stepperSetContinue(int continues, uint16_t delay)
 		stepper.continues = 0;
 		stepper.delay = 0;
 		TIMSK3  &= ~_BV(OCIE3A);  // disable stepTimer interrupt
-		PORTL = 0x10101010;
+		PORTL = 0b10101010;
 
 	}
 	sei();
@@ -438,7 +438,7 @@ void smartAlign(cyl_t firstCyl, link **h, link **t)
 		
 	}
 	
-	rotationCw = (target - lastPos + 200)%200;
+	rotationCw = (target - stepper.pos + 200)%200;
 	
 	if (willContinue == 1)//priority
 	{
@@ -468,7 +468,7 @@ void smartAlign(cyl_t firstCyl, link **h, link **t)
 		
 		if(qSize >= 1)
 		{
-			secRotationCw = (secTarget - (lastPos + stepsToTarget)%200 + 200)%200; // number to steps to second target
+			secRotationCw = (secTarget - (stepper.pos + stepsToTarget)%200 + 200)%200; // number to steps to second target
 		}
 	}
 	else
@@ -479,7 +479,7 @@ void smartAlign(cyl_t firstCyl, link **h, link **t)
 		
 		if(qSize >= 1)
 		{
-			secRotationCw = (secTarget - (lastPos - stepsToTarget) + 200)%200; // number to steps to second target
+			secRotationCw = (secTarget - (stepper.pos - stepsToTarget) + 200)%200; // number to steps to second target
 		}
 	}
 	
