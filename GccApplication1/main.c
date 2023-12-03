@@ -21,7 +21,7 @@
 #include "linkedQueue.h"
 
 // Calibration mode enable switch, uncomment to calibrate system
-// #define CALIBRATION_MODE
+//#define CALIBRATION_MODE
 
 // Object detection threshold value
 #define OBJECT_THRESH 970

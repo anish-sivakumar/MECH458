@@ -6,6 +6,9 @@
 #include "linkedQueue.h"
 #include <avr/io.h>
 
+int savedDir = 0;
+int willContinue = 0;
+
 typedef enum stepperPhase
 {
 	UP,
@@ -273,9 +276,8 @@ void smartAlign(cyl_t firstCyl, link **h, link **t)
 	int dir;
 	int secDir;
 	int stepsToTarget;
-	int stepsToRun;
+	uint16_t stepsToRun;
 	cyl_t secCyl;
-	
 		
 	//cyl_t thirdCyl = (*h)->next->e.itemCode;
 	
@@ -334,15 +336,33 @@ void smartAlign(cyl_t firstCyl, link **h, link **t)
 		
 	}
 	
+	rotationCw = (target - lastPos + 200)%200;
 	
-	rotationCw = (target - lastPos + 200)%200; 
+	if (willContinue == 1)//priority
+	{
+		if (savedDir == 1)
+		{
+			dir = 1;
+		} else
+		{
+			dir = 0;
+		}
+	} else // if not , calculate dir
+	{  
+		if (rotationCw <= 100)
+		{
+			dir = 0;
+		} else
+		{
+			dir = 1;
+		}
+	}
 	
 	//determine direction and steps to turn
-	if (rotationCw <= 100)
+	if (dir == 0)
 	{
 		stepsToTarget = rotationCw;
 		stepsToRun = stepsToTarget;
-		dir = 0;
 		
 		if(qSize >= 1)
 		{
@@ -351,9 +371,9 @@ void smartAlign(cyl_t firstCyl, link **h, link **t)
 	}
 	else
 	{
+		
 		stepsToTarget = 200 - rotationCw;
 		stepsToRun = stepsToTarget;
-		dir = 1;
 		
 		if(qSize >= 1)
 		{
@@ -361,26 +381,24 @@ void smartAlign(cyl_t firstCyl, link **h, link **t)
 		}
 	}
 	
+	//determine second direction
 	if(qSize >= 1)
 	{
-		if (secRotationCw <= 100)
+		if (secRotationCw <= 110 && dir == 0)
 		{
 			secDir = 0;
 		}
-		else
+		else if (secRotationCw >= 90 && dir == 1)
 		{
 			secDir = 1;
 		}
 	}
 	
-	  
-	LCDWriteIntXY(0,1,dir,1); //000
-	LCDWriteIntXY(5,1,secDir,1); //682
-		
-	// determine arguments to rotate function
+	// determine steps to run and exit speed
 	if (dir == secDir && qSize >=1) 
 	{
-		
+		willContinue = 1;
+		savedDir = secDir;
 		if (dir == 0) // if going CW twice
 		{
 			stepsToRun = stepsToTarget; //-25
@@ -390,6 +408,9 @@ void smartAlign(cyl_t firstCyl, link **h, link **t)
 		}
 		
 		exitSpeed = 999; // PLACEHOLDER
+		
+		//propagate direction
+		
 		
 		/*
 		// determine exit speed
@@ -404,12 +425,21 @@ void smartAlign(cyl_t firstCyl, link **h, link **t)
 	} else
 	{
 		exitSpeed = 0;
+		willContinue = 0;
 	}
+	
+	LCDWriteIntXY(0,1,dir,1); //000
+	LCDWriteIntXY(3,1,secDir,1); //682
+	LCDWriteIntXY(5,1,stepsToRun,3); //682
+	LCDWriteIntXY(9,1,willContinue,1); //000
+	LCDWriteIntXY(12,1,savedDir,1); //682
+	dTimer(30000);
 	
 	//LCDWriteIntXY(0,1,exitSpeed,3); //000
 	//LCDWriteIntXY(5,1,stepsToRun,3); //682
-	
+	//dTimer(30000);
 	
 	rotate(stepsToRun, dir); // and exitSpeed
+	//rotate(100,1);
 }
 
