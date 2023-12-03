@@ -20,8 +20,17 @@
 #include "lcd.h"
 #include "linkedQueue.h"
 
+
 // Calibration mode enable switch, uncomment to calibrate system
 //#define CALIBRATION_MODE
+
+// Stepper test mode 
+ #define STEPPER_TEST
+
+
+#ifdef STEPPER_TEST
+#include "tests.h"
+#endif
 
 // Object detection threshold value
 #define OBJECT_THRESH 970
@@ -117,6 +126,11 @@ int main(int argc, char *argv[]){
 	}
 	heFlag = 0;
 	resetPosition();
+	
+	// testing routines
+	#ifdef STEPPER_TEST
+	stepperContinueTest();
+	#endif 
 	
 	///////////////////////////
 	// Main FSM control loop //

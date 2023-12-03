@@ -84,13 +84,19 @@ void debounceDelay()
 
 void timerInit()
 {
+	// mTimer and dTimer  init
 	TCCR1B	|= _BV(CS11); //set timer prescaler to 8. 8Mhz/8 = 1MHz timer freq
 	TCCR1B	|= _BV(WGM12); //CTC Mode with TOP being OCR1A value
-	OCR1A	= 0x03E8; //output compare register to 1ms period
-	TCNT1	= 0x0000; //start counting at zero
 	TCNT1	= 0x0000; //start counting at zero
 	TIFR1	|= _BV(OCF1A); //set the output compare flag bit in the timer interrupt flag register.
-	//	 OCF1A is cleared by writing one to it. Handled in hardware
+	
+	// stepTimer init
+	TCCR3A = 0;  // Set TCCR3A to 0 for normal operation
+	TCCR3B = 0;
+	TCCR3B	|= _BV(CS31); //set timer prescaler to 8. 8Mhz/8 = 1MHz timer freq
+	TCCR3B	|= _BV(WGM32); //CTC Mode with TOP being OCR3A value
+	TCNT3	= 0x0000; // start counting at zero
+	// Dont enable interrupt yet
 }
 
 void mTimer(uint32_t count)
@@ -111,7 +117,7 @@ void mTimer(uint32_t count)
 
 void dTimer(uint32_t count)
 {
-	OCR1A	= 0x0064; //output compare register to 100cycles/.1ms
+	OCR1A	= 0x00A; //output compare register to 100cycles/.1ms
 	
 	//run the timer (.1ms) "count" times
 	uint32_t i = 0;
@@ -125,8 +131,6 @@ void dTimer(uint32_t count)
 		}
 	}
 }
-
-
 
 void adcInit()
 {	
