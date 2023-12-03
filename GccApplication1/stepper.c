@@ -23,22 +23,24 @@ and returns the last step we ran*/
 
 void resetPosition()
 {
-	lastPos%=4;
+	stepper.pos = 0;
 }
 
-void step(int *iPtr, int dir)
+void step()
 {
-	int i = *iPtr;
 	//increment or decrement i & handle overflow
-	if (dir == 0) //cw
+	if (stepper.dir == 0) //cw
 	{
-		i = (i+1)%4;
-	} else if (dir == 1) //ccw
+		stepper.step = (stepper.step + 1) % 4;
+		stepper.pos  = (stepper.pos + 1) % 200;
+	} else if (stepper.dir == 1) //ccw
 	{
-		i = (i == 0) ? 3 : i - 1;
+		stepper.step = (stepper.step + 3) % 4;
+		stepper.pos  = (stepper.pos + 199) % 200;
+
 	}
 	
-	switch (i)
+	switch (stepper.step)
 	{
 		//assuming PORTA bits mean this: (e1,l1,l2,e2,l3,l4, zero, zero)
 		case 0:
@@ -61,185 +63,183 @@ void step(int *iPtr, int dir)
 		return; //something went wrong
 		
 	}//switch
-	
-	*iPtr = i;
+
 }
 
-// returns the out
-void rotateTrapezoid(int stepsToRun, int dir) 
+void stepperIntDisable()
 {
-	int stepsCount = 0;
-	int i = lastStep;
-	int delay;
-	
-	/*
-	int speed = 45; //steps/sec = 1/delay
-	
-	//profile parameters
-	int maxSpeed = 160; // 8.3ms delay
-	int minSpeed = 40;
-	int upRate = 6;
-	int downRate = 15;
-	*/
-	
-	
-	int speed = 90; //steps/sec = 1/delay
-	
-	//profile parameters
-	int maxSpeed = 280; // 8.3ms delay
-	int minSpeed = 80;
-	int upRate = 10;
-	int downRate = 30;
-	
-	
-	stepperPhase phase = UP;
-	
-	int constSteps = stepsToRun - (maxSpeed-minSpeed)/upRate - (maxSpeed-minSpeed)/downRate; //28 based off maxSpeed = 160; minSpeed = 40;  upRate = 6;  downRate = 15;
-	int constCount = 0;
-	
-	while(stepsCount < stepsToRun)
-	{	
-		//increment or decrement i & handle overflow
-		if (dir == 0) //cw
+	cli();
+	TIMSK3  &= ~_BV(OCIE3A);  // disable stepTimer interrupt
+	sei();
+}
+
+void stepperSetContinue(int continues, uint16_t delay)
+{
+	cli();
+	if (continues)
+	{
+		stepper.continues = 1;
+		stepper.delay = delay;
+		if (delay < 6553)
 		{
-			i = (i+1)%4;
-		} else if (dir == 1) //ccw
-		{
-			i = (i == 0) ? 3 : i - 1;
+			OCR3A = 10 * delay;
 		}
-		
-		switch (i)
+		else // requested delay is too large, set the slowest possible speed = 65ms
 		{
-			//assuming PORTA bits mean this: (e1,l1,l2,e2,l3,l4, zero, zero)
-			case 0:
-			  PORTA = 0b11011000;
-		      break;
-
-		    case 1:
-              PORTA = 0b10111000;
-		      break;
-
-		    case 2:
-		      PORTA = 0b10110100;
-		      break;
-
-		    case 3:
-		      PORTA = 0b11010100;
-		      break;
-
-		    default:
-		     return; //something went wrong
-		
-		}//switch
-
-		stepsCount++;
-		
-		switch (phase)
-		{
-			case UP:
-				speed = speed + upRate;
-				
-				//exit
-				if (speed >= maxSpeed)
-				{
-					phase = HI;
-				}
-				
-				break;
-			case DOWN:
-				speed = speed - downRate;
-				
-				//exit
-				if (speed <= minSpeed)
-				{
-					phase = LO;
-				}
-				
-				break;	
-			case HI:
-				speed = maxSpeed;
-				constCount++;
-				
-				//exit
-				if (constCount >= constSteps)
-				{
-					phase = DOWN;
-				}
-				break;
-			case LO:
-				//low speed until steps are complete
-				break;
+			OCR3A = 0xff;
 		}
-		
-		//calculate delay
-		delay = 10000/speed; //in 10ms
-		dTimer(delay);
-	}//while
-	
-	lastStep = i;
-	lastPos = dir ? 
-		((lastPos - stepsToRun + 200) % 200) : 
-		(lastPos + stepsToRun) % 200;
-}//rotate
+		TCNT3 = 0;
+		TIMSK3  |= _BV(OCIE3A); // enable stepTimer interrupt
+	}
+	else
+	{
+		stepper.continues = 0;
+		stepper.delay = 0;
+		TIMSK3  &= ~_BV(OCIE3A);  // disable stepTimer interrupt
+		PORTL = 0x10101010;
+
+	}
+	sei();
+}
+
+
+//// returns the out
+//void rotateTrapezoid(int stepsToRun, int dir) 
+//{
+	//int stepsCount = 0;
+	//int i = lastStep;
+	//int delay;
+	//
+	///*
+	//int speed = 45; //steps/sec = 1/delay
+	//
+	////profile parameters
+	//int maxSpeed = 160; // 8.3ms delay
+	//int minSpeed = 40;
+	//int upRate = 6;
+	//int downRate = 15;
+	//*/
+	//
+	//
+	//int speed = 90; //steps/sec = 1/delay
+	//
+	////profile parameters
+	//int maxSpeed = 280; // 8.3ms delay
+	//int minSpeed = 80;
+	//int upRate = 10;
+	//int downRate = 30;
+	//
+	//
+	//stepperPhase phase = UP;
+	//
+	//int constSteps = stepsToRun - (maxSpeed-minSpeed)/upRate - (maxSpeed-minSpeed)/downRate; //28 based off maxSpeed = 160; minSpeed = 40;  upRate = 6;  downRate = 15;
+	//int constCount = 0;
+	//
+	//while(stepsCount < stepsToRun)
+	//{	
+		////increment or decrement i & handle overflow
+		//if (dir == 0) //cw
+		//{
+			//i = (i+1)%4;
+		//} else if (dir == 1) //ccw
+		//{
+			//i = (i == 0) ? 3 : i - 1;
+		//}
+		//
+		//switch (i)
+		//{
+			////assuming PORTA bits mean this: (e1,l1,l2,e2,l3,l4, zero, zero)
+			//case 0:
+			  //PORTA = 0b11011000;
+		      //break;
+//
+		    //case 1:
+              //PORTA = 0b10111000;
+		      //break;
+//
+		    //case 2:
+		      //PORTA = 0b10110100;
+		      //break;
+//
+		    //case 3:
+		      //PORTA = 0b11010100;
+		      //break;
+//
+		    //default:
+		     //return; //something went wrong
+		//
+		//}//switch
+//
+		//stepsCount++;
+		//
+		//switch (phase)
+		//{
+			//case UP:
+				//speed = speed + upRate;
+				//
+				////exit
+				//if (speed >= maxSpeed)
+				//{
+					//phase = HI;
+				//}
+				//
+				//break;
+			//case DOWN:
+				//speed = speed - downRate;
+				//
+				////exit
+				//if (speed <= minSpeed)
+				//{
+					//phase = LO;
+				//}
+				//
+				//break;	
+			//case HI:
+				//speed = maxSpeed;
+				//constCount++;
+				//
+				////exit
+				//if (constCount >= constSteps)
+				//{
+					//phase = DOWN;
+				//}
+				//break;
+			//case LO:
+				////low speed until steps are complete
+				//break;
+		//}
+		//
+		////calculate delay
+		//delay = 10000/speed; //in 10ms
+		//dTimer(delay);
+	//}//while
+	//
+	//lastStep = i;
+	//lastPos = dir ? 
+		//((lastPos - stepsToRun + 200) % 200) : 
+		//(lastPos + stepsToRun) % 200;
+//}//rotate
 
 void rotate(int stepsToRun, int dir) 
 {
-	//int stepsToRun = (int)deg/1.8; 
 	int stepsCount = 0;
-	int i = lastPos;
-
+	stepper.dir = dir;
+	
 	while(stepsCount < stepsToRun)
 	{	
-		//increment or decrement i & handle overflow
-		if (dir == 0) //cw
-		{
-			i = (i+1)%4;
-		} else if (dir == 1) //ccw
-		{
-			i = (i == 0) ? 3 : i - 1;
-		}
-		
-		switch (i)
-		{
-			//assuming PORTA bits mean this: (e1,l1,l2,e2,l3,l4, zero, zero)
-			case 0:
-			  PORTA = 0b11011000;
-		      break;
-
-		    case 1:
-              PORTA = 0b10111000;
-		      break;
-
-		    case 2:
-		      PORTA = 0b10110100;
-		      break;
-
-		    case 3:
-		      PORTA = 0b11010100;
-		      break;
-
-		    default:
-		     return; //something went wrong
-		
-		}//switch
-
+		step();
 		stepsCount++;
-		
-		//delay for coils to re magnetize
 		mTimer(20);
 	}//while
-		
-	lastStep = i;
-	lastPos = dir ?
-		((lastPos - stepsToRun + 200) % 200) :
-		(lastPos + stepsToRun) % 200;
 }//rotate
 
 
-void rotateTrapLut(int stepsToRun, int dir, int inDelay, int outDelay)
+void rotateTrapLut(int stepsToRun, uint16_t outDelay)
 {
+	// disable async stepper control 
+	stepperIntDisable();
+	
 	int stepsCount = 0;
-	int i = lastStep;
 	int accelIdx = 0;
 	int decelIdx = 5;
 	int accelEnd, decelBegin;
@@ -247,18 +247,23 @@ void rotateTrapLut(int stepsToRun, int dir, int inDelay, int outDelay)
 	
 	// start at the appropriate speed
 	accelIdx = 0;
-	while(accel[accelIdx] > inDelay && accelIdx < accelLutSz - 1)
+	if(stepper.delay != 0)
 	{
-		++accelIdx;
+		while(accel[accelIdx] > stepper.delay && accelIdx < accelLutSz - 1)
+		{
+			++accelIdx;
+		}
 	}
 	
 	// end at the appropriate speed
 	decelIdx = 5;
-	while(decel[decelIdx] < outDelay && decelIdx > 0)
+	if(outDelay != 0)
 	{
-		--decelIdx;
+		while(decel[decelIdx] < outDelay && decelIdx > 0)
+		{
+			--decelIdx;
+		}
 	}
-	decelBegin = stepsToRun - accelIdx;
 
 	// calculate phase transition indexes
 	int accelSteps = (accelLutSz - accelIdx) + (decelIdx + 1);
@@ -270,7 +275,7 @@ void rotateTrapLut(int stepsToRun, int dir, int inDelay, int outDelay)
 	while (stepsCount < stepsToRun)
 	{
 		// step 
-		step(&i,dir);
+		step();
 		stepsCount++;
 		
 		// perform delay
@@ -295,15 +300,18 @@ void rotateTrapLut(int stepsToRun, int dir, int inDelay, int outDelay)
 		else if (stepsCount == accelEnd)
 		{
 			sPhase = HI;
-		}
-		
-		
+		}				
 	}
 	
-	lastStep = i;
-	lastPos = dir ?
-		((lastPos - stepsToRun + 200) % 200) :
-		(lastPos + stepsToRun) % 200;
+	// update stepper values
+	if (outDelay != 0)
+	{
+		stepperSetContinue(1,outDelay);
+	}
+	else
+	{
+		stepperSetContinue(0,0);
+	}
 }
 
 void basicAlign(cyl_t cyl_type)
@@ -330,13 +338,26 @@ void basicAlign(cyl_t cyl_type)
 		case DISCARD: // something went wrong
 			return;
 	}
-	int rotationCw = (target - lastPos + 200)%200;
+	int rotationCw = (target - stepper.pos + 200)%200;
 	if (rotationCw <= 100) 
 	{
-		rotateTrapLut(rotationCw, 0, 9999, 9999); // fastest is CW
+		stepper.dir = 0;
+		rotateTrapLut(rotationCw, 0); // fastest is CW
 	}
 	else
+	{	stepper.dir = 1;
+		rotateTrapLut(200 - rotationCw, 0); // fastest is CCW
+	}
+	
+	stepper.continues = 0;
+}
+
+ISR(TIMER3_COMPA_vect)
+{
+	PORTL = 0xff;
+
+	if (stepper.continues)
 	{
-		rotateTrapLut(200 - rotationCw, 1, 9999, 9999); // fastest is CCW
+		step();
 	}
 }

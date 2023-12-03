@@ -88,8 +88,15 @@ void timerInit()
 	TCCR1B	|= _BV(CS11); //set timer prescaler to 8. 8Mhz/8 = 1MHz timer freq
 	TCCR1B	|= _BV(WGM12); //CTC Mode with TOP being OCR1A value
 	TCNT1	= 0x0000; //start counting at zero
-	TCNT1	= 0x0000; //start counting at zero
 	TIFR1	|= _BV(OCF1A); //set the output compare flag bit in the timer interrupt flag register.
+	
+	// stepTimer init
+	TCCR3A = 0;  // Set TCCR3A to 0 for normal operation
+	TCCR3B = 0;
+	TCCR3B	|= _BV(CS31); //set timer prescaler to 8. 8Mhz/8 = 1MHz timer freq
+	TCCR3B	|= _BV(WGM32); //CTC Mode with TOP being OCR3A value
+	TCNT3	= 0x0000; // start counting at zero
+	// Dont enable interrupt yet
 }
 
 void mTimer(uint32_t count)
@@ -124,8 +131,6 @@ void dTimer(uint32_t count)
 		}
 	}
 }
-
-
 
 void adcInit()
 {	
