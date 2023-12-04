@@ -75,6 +75,13 @@ void stepperIntDisable()
 	cli();
 	TIMSK3  &= ~_BV(OCIE3A);  // disable stepTimer interrupt
 	sei();
+	/*
+	if (!stepper.continues)
+	{
+		stepper.syncReq = 1;
+		while (stepper.syncReq); // wait for stepper to synchronize		
+	}
+	*/
 }
 
 void stepperSetContinue(int continues, uint16_t delay)
@@ -278,13 +285,15 @@ void rotateTrapLut(int stepsToRun, uint16_t outDelay)
 	
 	while (stepsCount < stepsToRun)
 	{
+		// perform delay
+		int delay = accel[accelIdx];
+		dTimer(delay);
+		
 		// step 
 		step();
 		stepsCount++;
 		
-		// perform delay
-		int delay = accel[accelIdx];
-		dTimer(delay);
+
 		
 		// update lutIdx and sPhase
 		switch(sPhase)
@@ -358,11 +367,15 @@ void basicAlign(cyl_t cyl_type)
 
 ISR(TIMER3_COMPA_vect)
 {
-	PORTL = 0xff;
-
 	if (stepper.continues)
 	{
 		step();
+	}
+	
+	if (stepper.syncReq)
+	{
+		TIMSK3  &= ~_BV(OCIE3A);  // disable stepTimer interrupt
+		stepper.syncReq = 0;
 	}
 }
 
@@ -370,18 +383,16 @@ void smartAlign(cyl_t firstCyl, link **h, link **t)
 {
 	int target;
 	int secTarget;
-	int exitSpeed;
-	int exitPos;
-	int prevDir;
+	uint16_t exitSpeed;
 	int rotationCw;
 	int secRotationCw;
 	int dir;
-	int secDir;
+	int secDir; //add to stepper obj as nextDir
 	int stepsToTarget;
 	uint16_t stepsToRun;
 	cyl_t secCyl;
-		
-	//cyl_t thirdCyl = (*h)->next->e.itemCode;
+	int qSize = lqSize(h,t);
+	cyl_t thirdCyl;
 	
 	
 	// assign position to type
@@ -407,11 +418,16 @@ void smartAlign(cyl_t firstCyl, link **h, link **t)
 		return;
 	}
 	
-	int qSize = lqSize(h,t);
+	// dont move if you don't have to
+	if ((target - stepper.pos) <= 10 && (target - stepper.pos) >= -10)
+	{
+		return;
+	}
+	
 	if (qSize >= 1)
 	{
 		
-		secCyl = (*h)->e.itemCode;
+		secCyl = (lqFirst(h)).itemCode;
 		
 		// assign position to type
 		switch (secCyl)
@@ -437,9 +453,9 @@ void smartAlign(cyl_t firstCyl, link **h, link **t)
 		}
 		
 	}
-	
+		
+	//determine first direction
 	rotationCw = (target - stepper.pos + 200)%200;
-	
 	if (willContinue == 1)//priority
 	{
 		if (savedDir == 1)
@@ -460,61 +476,51 @@ void smartAlign(cyl_t firstCyl, link **h, link **t)
 		}
 	}
 	
-	//determine direction and steps to turn
+	//first steps to turn
 	if (dir == 0)
 	{
-		stepsToTarget = rotationCw;
-		stepsToRun = stepsToTarget;
-		
-		if(qSize >= 1)
-		{
-			secRotationCw = (secTarget - (stepper.pos + stepsToTarget)%200 + 200)%200; // number to steps to second target
-		}
+		stepsToRun = rotationCw;
 	}
 	else
-	{
-		
-		stepsToTarget = 200 - rotationCw;
-		stepsToRun = stepsToTarget;
-		
-		if(qSize >= 1)
-		{
-			secRotationCw = (secTarget - (stepper.pos - stepsToTarget) + 200)%200; // number to steps to second target
-		}
+	{	
+		stepsToRun = 200 - rotationCw;
 	}
-	
+
 	//determine second direction
 	if(qSize >= 1)
 	{
-		if (secRotationCw <= 110 && dir == 0)
-		{
-			secDir = 0;
-		}
-		else if (secRotationCw >= 90 && dir == 1)
+		secRotationCw = (secTarget - target + 200)%200; // number to steps to second target
+		
+		if (secRotationCw > 101)
 		{
 			secDir = 1;
+		} else if (secRotationCw <= 101)
+		{
+			secDir = 0;			
 		}
+		
+		/*
+		if (qSize >= 2){
+			(*h)->next->e.itemCode;
+			 if (secRotationCw == 0) //ex: Al AL BLK
+			 {
+				calc dist/dir to third cyl, and calc 
+			 }
+		*/	
+			
+			
 	}
 	
-	// determine steps to run and exit speed
+	// set exit speed and position
 	if (dir == secDir && qSize >=1) 
 	{
 		willContinue = 1;
 		savedDir = secDir;
-		if (dir == 0) // if going CW twice
-		{
-			stepsToRun = stepsToTarget; //-25
-		} else 
-		{
-			stepsToRun = stepsToTarget; //+25
-		}
+		stepsToRun = stepsToRun - 25; // for border
 		
-		exitSpeed = 999; // PLACEHOLDER
+		exitSpeed = 1200; //outDelay
 		
-		//propagate direction
-		
-		
-		/*
+		/* if we have two same types and then another that has same direction  (Al, Al, BLK)
 		// determine exit speed
 		if (thirdCyl == secCyl) // if the second and third objects are the same, slow exitSpeed
 		{
@@ -530,18 +536,10 @@ void smartAlign(cyl_t firstCyl, link **h, link **t)
 		willContinue = 0;
 	}
 	
-	LCDWriteIntXY(0,1,dir,1); //000
-	LCDWriteIntXY(3,1,secDir,1); //682
-	LCDWriteIntXY(5,1,stepsToRun,3); //682
-	LCDWriteIntXY(9,1,willContinue,1); //000
-	LCDWriteIntXY(12,1,savedDir,1); //682
-	dTimer(30000);
+	//LCDWriteIntXY(0,1,dir,1); //000
+	//LCDWriteIntXY(3,1,secDir,1); //682
 	
-	//LCDWriteIntXY(0,1,exitSpeed,3); //000
-	//LCDWriteIntXY(5,1,stepsToRun,3); //682
-	//dTimer(30000);
-	
-	rotate(stepsToRun, dir); // and exitSpeed
-	//rotate(100,1);
-}
+	stepper.dir = dir;
+	rotateTrapLut(stepsToRun, exitSpeed);// i want the ISR to stop every time rotate() is called. 
 
+}

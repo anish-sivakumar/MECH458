@@ -13,6 +13,7 @@ typedef struct stepper
 	int dir;		// the direction the stepper is turning
 	int delay;		// the current delay setting of the stepper. 0 means off.
 	int continues;	// flag to state if the stepper is to be run asynchronously
+	int syncReq;
 }stepper_t;
 
 stepper_t stepper;

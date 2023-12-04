@@ -25,7 +25,7 @@
 //#define CALIBRATION_MODE
 
 // Stepper test mode 
- #define STEPPER_TEST
+// #define STEPPER_TEST
 
 
 #ifdef STEPPER_TEST
@@ -33,7 +33,7 @@
 #endif
 
 // Object detection threshold value
-#define OBJECT_THRESH 970
+#define OBJECT_THRESH 1012
 
 // Object drop time parameters
 #define OBJECT_DROP_TIME 400
@@ -251,7 +251,7 @@ int main(int argc, char *argv[]){
 				*/
 				
 				lqPop(&qHead, &qTail, &poppedLink);
-				smartAlign(poppedLink->e.itemCode); //testing smartAlign
+				smartAlign(poppedLink->e.itemCode, &qHead, &qTail ); //testing smartAlign
 			
 				processedCount[poppedLink->e.itemCode]++;
 				//LCDWriteIntXY(4,0,poppedLink->e.itemCode,1);
