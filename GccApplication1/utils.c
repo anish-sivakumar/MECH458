@@ -16,14 +16,14 @@
 volatile unsigned int ADC_result_flag;
 
 // Calibration Settings
-#define BLACK_THRESH 1005
-#define WHITE_THRESH 990
+#define BLACK_THRESH 980
+#define WHITE_THRESH 940
 #define STEEL_THRESH 850
 #define ALUM_THRESH 400
 uint16_t adc_total_min = 0;
 uint16_t adc_total_max = 0;
 
-void displayCalibration(uint16_t adc_min)
+void displayCalibration(uint16_t adc_min, uint16_t adcReadings)
 {
 	// If this is the first pass, set both total min and total max
 	if(adc_total_min == 0 && adc_total_max == 0)
@@ -42,6 +42,8 @@ void displayCalibration(uint16_t adc_min)
 	}
 	LCDWriteIntXY(0,0,adc_total_max,5);
 	LCDWriteIntXY(6,0,adc_total_min,5);
+	if (adcReadings > 10)
+	LCDWriteIntXY(8,1,(int)adcReadings,6);
 }
 
 cyl_t getCylType(uint16_t adc_min)

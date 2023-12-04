@@ -9,7 +9,7 @@
 #define accelLutSz 24
 #define decelLutSz 6
 const int accel[accelLutSz]	= {1200, 1049, 945, 868, 807, 758, 717, 682, 652, 625, 602, 581, 562, 545, 529, 515, 501, 489, 478, 467, 457, 448, 439, 435};
-const int decel[decelLutSz]	= {1200, 807, 652, 602, 562, 529};
+const int decel[decelLutSz]	= {0, 4, 8, 10, 12, 14};
 
 int savedDir = 0;
 int willContinue = 0;
@@ -293,8 +293,6 @@ void rotateTrapLut(int stepsToRun, uint16_t outDelay)
 		step();
 		stepsCount++;
 		
-
-		
 		// update lutIdx and sPhase
 		switch(sPhase)
 		{
@@ -302,7 +300,8 @@ void rotateTrapLut(int stepsToRun, uint16_t outDelay)
 				accelIdx++;
 				break;
 			case DOWN:
-				accelIdx--;
+				accelIdx = decel[decelIdx];
+				decelIdx--;
 				break;
 		}
 		
@@ -314,6 +313,11 @@ void rotateTrapLut(int stepsToRun, uint16_t outDelay)
 		{
 			sPhase = HI;
 		}				
+		
+		//LCDWriteIntXY(14,0,sPhase,2);
+		//LCDWriteIntXY(14,1,accelIdx,2);
+//
+		//mTimer(200);
 	}
 	
 	// update stepper values

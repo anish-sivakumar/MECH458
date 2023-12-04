@@ -25,7 +25,7 @@ typedef enum cyl
 	DISCARD // invalid object detected
 }cyl_t;
 
-void displayCalibration(uint16_t adc_min);
+void displayCalibration(uint16_t adc_min, uint16_t adcReadings);
 cyl_t getCylType(uint16_t adc_min);
 void debounceDelay();
 void timerInit();

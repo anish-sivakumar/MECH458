@@ -22,7 +22,7 @@
 
 
 // Calibration mode enable switch, uncomment to calibrate system
-//#define CALIBRATION_MODE
+// #define CALIBRATION_MODE
 
 // Stepper test mode 
 // #define STEPPER_TEST
@@ -33,7 +33,7 @@
 #endif
 
 // Object detection threshold value
-#define OBJECT_THRESH 1012
+#define OBJECT_THRESH 990
 
 // Object drop time parameters
 #define OBJECT_DROP_TIME 400
@@ -59,6 +59,7 @@ int stepperLastPos = 0;
 // ADC classification variables
 uint16_t adcVal = OBJECT_THRESH;
 uint16_t adcMin = OBJECT_THRESH;
+uint16_t adcReadings = 0;
 int objDetect = 0;
 cyl_t cylType = DISCARD;
 
@@ -83,6 +84,7 @@ int main(int argc, char *argv[]){
 	DDRB = 0b11111111; // PORTB = output
 	DDRC = 0b11111111; // PORTC = output
 	DDRD = 0b00000000; // PORTD = input
+	DDRE = 0b00000000; // PORTE = input
 	DDRL = 0b11111111; // PORTL = output
 
 	// Set initial outputs
@@ -164,7 +166,7 @@ int main(int argc, char *argv[]){
 				adcVal = adcRead();
 				
 				// Object processing logic
-				if (adcVal < OBJECT_THRESH)
+				if ((adcVal < OBJECT_THRESH) && (PINE & 0x10) )
 				{
 					// Were detecting an object
 					objDetect = 1;
@@ -172,16 +174,18 @@ int main(int argc, char *argv[]){
 					{
 						adcMin = adcVal;
 					}
+					adcReadings++;
+					
 				}
 				else if (objDetect)
 				{
 					// Object has finished passing through, process it
 					#ifdef CALIBRATION_MODE
-						displayCalibration(adcMin);
+						displayCalibration(adcMin, adcReadings);
 						
 					#else
 						cylType = getCylType(adcMin);
-						if (cylType != DISCARD)
+						if (cylType != DISCARD && adcReadings > 5)
 						{
 							//LCDWriteIntXY(8,1,adcMin,4)
 							initLink(&newLink);
@@ -194,6 +198,7 @@ int main(int argc, char *argv[]){
 					// Reset values
 					objDetect = 0;
 					adcMin = 0xFFFF;
+					adcReadings = 0;
 				}
 				
 				//LCDWriteIntXY(0,1,adcVal,5);
@@ -221,7 +226,7 @@ int main(int argc, char *argv[]){
 				}
 				
 				// Print some debug stuff 
-				LCDWriteIntXY(8,0,lqSize(&qHead,&qTail),1);
+				LCDWriteIntXY(8,0,lqSize(&qHead,&qTail),2);
 				
 				if (qHead != NULL)
 				{
@@ -232,9 +237,6 @@ int main(int argc, char *argv[]){
 					LCDWriteIntXY(0,0,4,1);
 				}
 				#endif
-				
-				// Hardcode a delay 
-				mTimer(1);
 				
 				break;
 			
