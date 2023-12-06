@@ -404,7 +404,7 @@ int smartAlign(cyl_t firstCyl, link **h, link **t)
 	if(skipAlign)
 	{
 		skipAlign = 0;
-		retVal = 0;
+		retVal = 1; //set timer
 	} 
 	else 
 	{
@@ -512,42 +512,35 @@ int smartAlign(cyl_t firstCyl, link **h, link **t)
 					calc dist/dir to third cyl, and calc 
 				 }
 			*/	
-			// set exit speed and position
-			if (dir == secDir) 
-			{
-				willContinue = 1;
-				savedDir = secDir;
-				stepsToRun = stepsToRun - 25; // for border
-		
-				exitSpeed = 1200; //outDelay
-		
-				/* if we have two same types and then another that has same direction  (Al, Al, BLK)
-				// determine exit speed
-				if (thirdCyl == secCyl) // if the second and third objects are the same, slow exitSpeed
-				{
-					exitSpeed = 555; // PLACEHOLDER
-				} else { 
-					exitSpeed = 999; // PLACEHOLDER
-				}
-				*/
-		
-			} else
-			{
-				exitSpeed = 0;
-				willContinue = 0;
-			}
-		
+			
 			// set delay for next cyl
 			if (target == secTarget)
 			{
 				retVal = 1;
 				skipAlign = 1;
+				exitSpeed = 0;
+				willContinue = 0;
 			}
-			else 
+			else
 			{
 				retVal = 0;
+				
+				// set exit speed and position
+				if (dir == secDir) 
+				{
+					willContinue = 1;
+					savedDir = secDir;
+					stepsToRun = stepsToRun - 25; // for border
+		
+					exitSpeed = 1200; //outDelay
 			
+				} else
+				{
+					exitSpeed = 0;
+					willContinue = 0;
+				}
 			}
+			
 		
 		} else //if empty queue
 		{ 

@@ -16,10 +16,10 @@
 volatile unsigned int ADC_result_flag;
 
 // Calibration Settings
-#define BLACK_THRESH 980
-#define WHITE_THRESH 940
+#define BLACK_THRESH 1015
+#define WHITE_THRESH 974
 #define STEEL_THRESH 850
-#define ALUM_THRESH 400
+#define ALUM_THRESH 200
 uint16_t adc_total_min = 0;
 uint16_t adc_total_max = 0;
 
@@ -110,7 +110,7 @@ void timerInit()
 	TCCR4B |= _BV(WGM42); //CTC Mode with TOP being OCR4A value
 	TIMSK4 |= (1 << OCIE4A);
 	// Output compare value
-	OCR4A = 6000; //6000 looks good
+	OCR4A = 7000; //7000 looks good
 	// Initialize the counter value to 0
 	TCNT4 = 0;
 }

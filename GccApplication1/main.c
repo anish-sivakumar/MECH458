@@ -22,17 +22,17 @@
 
 
 // Calibration mode enable switch, uncomment to calibrate system
-// #define CALIBRATION_MODE
+//#define CALIBRATION_MODE
 
 // Stepper test mode 
-// #define STEPPER_TEST
+//#define STEPPER_TEST
 
 #ifdef STEPPER_TEST
 #include "tests.h"
 #endif
 
 // Object detection threshold value
-#define OBJECT_THRESH 990
+#define OBJECT_THRESH 1020
 
 typedef enum FSM_state
 {
@@ -47,7 +47,7 @@ FSM_state_t state = POLLING;
 
 // Motor settings
 volatile motorDir_t motorDir;
-volatile uint8_t motorPwm = 0x90;
+volatile uint8_t motorPwm = 0x80; //0x90 before
 
 // Stepper settings
 int stepperLastPos = 0;
@@ -73,6 +73,9 @@ volatile int pFlag = 0;
 
 // Drop timer flag
 volatile int dFlag = 1;
+
+//TESTING
+volatile int edCount = 0;
 
 /* ################## MAIN ROUTINE ################## */
 
@@ -163,6 +166,7 @@ int main(int argc, char *argv[]){
 				
 				// Get ADC reading
 				adcVal = adcRead();
+				//LCDWriteIntXY(0,1,adcVal,4)
 				
 				// Object processing logic
 				if ((adcVal < OBJECT_THRESH) && (PINE & 0x10) ) //AND OR-bit
@@ -176,7 +180,7 @@ int main(int argc, char *argv[]){
 					adcReadings++;
 					
 				}
-				else if (objDetect)
+				else if (objDetect && !(PINE & 0x10))
 				{
 					// Object has finished passing through, process it
 					#ifdef CALIBRATION_MODE
@@ -184,9 +188,12 @@ int main(int argc, char *argv[]){
 						
 					#else
 						cylType = getCylType(adcMin);
+						
 						if (cylType != DISCARD && adcReadings > 5)
 						{
-							//LCDWriteIntXY(8,1,adcMin,4)
+							LCDWriteIntXY(6,1,adcMin,4)
+							LCDWriteIntXY(11,1,adcReadings,3);
+							
 							initLink(&newLink);
 							newLink->e.itemCode = cylType;
 							lqPush(&qHead, &qTail, &newLink);
@@ -214,6 +221,12 @@ int main(int argc, char *argv[]){
 					}
 				}
 				
+				// Check pause flag
+				if (pFlag)
+				{
+					state = PAUSE;
+				}
+				
 				#ifndef CALIBRATION_MODE
 				// Check end of belt flag
 				if (edFlag)
@@ -221,7 +234,6 @@ int main(int argc, char *argv[]){
 					
 					state = STEPPER_CONTROL;
 					motorBrake();
-					edFlag = 0;					
 					continue;
 				}
 				
@@ -251,26 +263,37 @@ int main(int argc, char *argv[]){
 					If the pause button is pressed:
 						-> Go to PAUSE
 				*/
-				
+				LCDWriteIntXY(0,1,edCount,2);
 				lqPop(&qHead, &qTail, &poppedLink);
+				if (poppedLink == NULL)
+				{
+					LCDWriteIntXY(3,1,999,3);
+				}
 				
 				// Wait if dFlag not set (drop timer to finish)
 				while(dFlag == 0); 
 				
 				dFlag = smartAlign(poppedLink->e.itemCode, &qHead, &qTail); 
 				
-				LCDWriteIntXY(14,1,dFlag,2);
+				//LCDWriteIntXY(14,1,dFlag,2);
 				if (dFlag == 0){ //if we are rotating
-					PORTL = 0b000000000;
+					PORTL = 0b11111111;
 					// Enable Timer 4 
+					TCNT4 = 0;
 					TCCR4B |= (1 << CS42);
+					
 				}
 				
-			
-				processedCount[poppedLink->e.itemCode]++;
+				if (poppedLink != NULL)
+				{
+					processedCount[poppedLink->e.itemCode]++;
+				}
+				
 				//LCDWriteIntXY(4,0,poppedLink->e.itemCode,1);
 				free(poppedLink);
 				motorJog(motorDir, motorPwm);
+				edFlag = 0;
+
 				state = POLLING;
 				break;
 				
@@ -286,6 +309,21 @@ int main(int argc, char *argv[]){
 					If the pause button is pressed and we entered from STEPPER_CONTROL:
 						-> Go to STEPPER_CONTROL
 				*/
+				
+				motorBrake();
+				LCDClear();
+				LCDWriteStringXY(0,0,"BL: WH: AL: ST:");
+				LCDWriteIntXY(0 ,1,processedCount[BLACK],3);
+				LCDWriteIntXY(4 ,1,processedCount[WHITE],3);
+				LCDWriteIntXY(8 ,1,processedCount[ALUM ],3);
+				LCDWriteIntXY(12,1,processedCount[STEEL],3);
+				
+				while (pFlag);
+				
+				LCDClear();
+				state = POLLING;
+				motorJog(motorDir, motorPwm);
+
 				break;
 			
 			case END:
@@ -314,7 +352,7 @@ ISR(INT0_vect)
 //  switch 1 - pause
 ISR(INT1_vect)
 { 
-	pFlag = 1;
+	pFlag = !pFlag;
 }
 
 // End of Belt Detect
@@ -323,6 +361,7 @@ ISR(INT1_vect)
 ISR(INT2_vect)
 {
 	edFlag = 1;
+	edCount++;
 }
 
 // Hall-Effect Sensor for stepper calibration
@@ -339,7 +378,7 @@ ISR(TIMER4_COMPA_vect) {
 	dFlag = 1;
 	TCCR4B |= (0 << CS42); //disable timer
 	
-	PORTL = 0b11111111;
+	PORTL = 0b00000000;
 	/*
 	if (on == 1){
 		PORTL = 0b11111111;
