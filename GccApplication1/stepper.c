@@ -493,12 +493,15 @@ int smartAlign(cyl_t firstCyl, link **h, link **t)
 			//determine second direction
 			secRotationCw = (secTarget - target + 200)%200; // number to steps to second target
 		
-			if (secRotationCw > 101)
+			if (secRotationCw > 110)
 			{
 				secDir = 1;
-			} else if (secRotationCw <= 101)
+			} else if(secRotationCw < 90)
 			{
 				secDir = 0;			
+			} else
+			{
+				secDir = dir;
 			}
 		
 			/*
