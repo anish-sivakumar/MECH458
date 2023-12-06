@@ -53,7 +53,4 @@ stepperContinueTest()
 	
 }
 
-
-
-
 #endif /* TESTS_H_ */

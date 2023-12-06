@@ -27,16 +27,12 @@
 // Stepper test mode 
 // #define STEPPER_TEST
 
-
 #ifdef STEPPER_TEST
 #include "tests.h"
 #endif
 
 // Object detection threshold value
 #define OBJECT_THRESH 990
-
-// Object drop time parameters
-#define OBJECT_DROP_TIME 400
 
 typedef enum FSM_state
 {
@@ -75,6 +71,9 @@ volatile int rdFlag = 0;
 // Pause flag
 volatile int pFlag = 0;
 
+// Drop timer flag
+volatile int dFlag = 1;
+
 /* ################## MAIN ROUTINE ################## */
 
 int main(int argc, char *argv[]){
@@ -91,6 +90,7 @@ int main(int argc, char *argv[]){
 	PORTA = 0x00;
 	PORTB = 0x00;
 	PORTC = 0x00; 
+	
 		
 	// slow clock to 8MHz
 	CLKPR = 0x80;
@@ -104,7 +104,6 @@ int main(int argc, char *argv[]){
 	pwmInit(); 
 	adcInit(); 
 	eiInit();
-	
 	// Re-enable all interrupts
 	sei();		
 	
@@ -133,7 +132,7 @@ int main(int argc, char *argv[]){
 	#ifdef STEPPER_TEST
 	stepperContinueTest();
 	#endif 
-	
+		
 	///////////////////////////
 	// Main FSM control loop //
 	///////////////////////////
@@ -166,7 +165,7 @@ int main(int argc, char *argv[]){
 				adcVal = adcRead();
 				
 				// Object processing logic
-				if ((adcVal < OBJECT_THRESH) && (PINE & 0x10) )
+				if ((adcVal < OBJECT_THRESH) && (PINE & 0x10) ) //AND OR-bit
 				{
 					// Were detecting an object
 					objDetect = 1;
@@ -219,9 +218,10 @@ int main(int argc, char *argv[]){
 				// Check end of belt flag
 				if (edFlag)
 				{
+					
 					state = STEPPER_CONTROL;
 					motorBrake();
-					edFlag = 0;
+					edFlag = 0;					
 					continue;
 				}
 				
@@ -253,7 +253,19 @@ int main(int argc, char *argv[]){
 				*/
 				
 				lqPop(&qHead, &qTail, &poppedLink);
-				smartAlign(poppedLink->e.itemCode, &qHead, &qTail ); //testing smartAlign
+				
+				// Wait if dFlag not set (drop timer to finish)
+				while(dFlag == 0); 
+				
+				dFlag = smartAlign(poppedLink->e.itemCode, &qHead, &qTail); 
+				
+				LCDWriteIntXY(14,1,dFlag,2);
+				if (dFlag == 0){ //if we are rotating
+					PORTL = 0b000000000;
+					// Enable Timer 4 
+					TCCR4B |= (1 << CS42);
+				}
+				
 			
 				processedCount[poppedLink->e.itemCode]++;
 				//LCDWriteIntXY(4,0,poppedLink->e.itemCode,1);
@@ -320,3 +332,23 @@ ISR(INT3_vect)
 	heFlag = 1;
 }
 
+int on = 1;
+
+// Timer 4 overflow interrupt service routine sets the drop flag
+ISR(TIMER4_COMPA_vect) {
+	dFlag = 1;
+	TCCR4B |= (0 << CS42); //disable timer
+	
+	PORTL = 0b11111111;
+	/*
+	if (on == 1){
+		PORTL = 0b11111111;
+		on = 0;
+	}
+	else {
+		PORTL = 0x00;
+		on = 1;
+	}
+	*/
+
+}

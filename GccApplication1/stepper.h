@@ -3,6 +3,7 @@
 #define STEPPER_H_
 
 #include "utils.h"
+#include "linkedQueue.h"
 #include <avr/interrupt.h>
 
 
@@ -26,7 +27,7 @@ void stepperSetContinue(int continues, uint16_t delay);
 void rotate(int deg, int dir);
 void rotateTrapezoid(int deg, int dir);
 void rotateTrapLut(int stepsToRun, uint16_t outDelay);
-
+int smartAlign(cyl_t firstCyl, link **h, link **t);
 void basicAlign(cyl_t cyl_type);
 
 

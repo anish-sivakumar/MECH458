@@ -13,6 +13,7 @@ const int decel[decelLutSz]	= {0, 4, 8, 10, 12, 14};
 
 int savedDir = 0;
 int willContinue = 0;
+int skipAlign = 0;
 
 typedef enum stepperPhase
 {
@@ -107,7 +108,7 @@ void stepperSetContinue(int continues, uint16_t delay)
 		stepper.continues = 0;
 		stepper.delay = 0;
 		TIMSK3  &= ~_BV(OCIE3A);  // disable stepTimer interrupt
-		PORTL = 0b10101010;
+		//PORTL = 0b10101010;
 
 	}
 	sei();
@@ -329,6 +330,7 @@ void rotateTrapLut(int stepsToRun, uint16_t outDelay)
 	{
 		stepperSetContinue(0,0);
 	}
+	
 }
 
 void basicAlign(cyl_t cyl_type)
@@ -383,8 +385,10 @@ ISR(TIMER3_COMPA_vect)
 	}
 }
 
-void smartAlign(cyl_t firstCyl, link **h, link **t)
+//returns whether or not to wait for the drop to finish
+int smartAlign(cyl_t firstCyl, link **h, link **t)
 {
+	int retVal = 0;
 	int target;
 	int secTarget;
 	uint16_t exitSpeed;
@@ -392,158 +396,165 @@ void smartAlign(cyl_t firstCyl, link **h, link **t)
 	int secRotationCw;
 	int dir;
 	int secDir; //add to stepper obj as nextDir
-	int stepsToTarget;
 	uint16_t stepsToRun;
 	cyl_t secCyl;
 	int qSize = lqSize(h,t);
 	cyl_t thirdCyl;
-	
-	
-	// assign position to type
-	switch (firstCyl)
+
+	if(skipAlign)
 	{
-		case BLACK:
-		target = 0;
-		break;
-		
-		case ALUM:
-		target = 50;
-		break;
-		
-		case WHITE:
-		target = 100;
-		break;
-		
-		case STEEL:
-		target = 150;
-		break;
-		
-		case DISCARD: // something went wrong
-		return;
-	}
-	
-	// dont move if you don't have to
-	if ((target - stepper.pos) <= 10 && (target - stepper.pos) >= -10)
+		skipAlign = 0;
+		retVal = 0;
+	} 
+	else 
 	{
-		return;
-	}
-	
-	if (qSize >= 1)
-	{
-		
-		secCyl = (lqFirst(h)).itemCode;
-		
 		// assign position to type
-		switch (secCyl)
+		switch (firstCyl)
 		{
 			case BLACK:
-			secTarget = 0;
+			target = 0;
 			break;
-			
+		
 			case ALUM:
-			secTarget = 50;
+			target = 50;
 			break;
-			
+		
 			case WHITE:
-			secTarget = 100;
+			target = 100;
 			break;
-			
+		
 			case STEEL:
-			secTarget = 150;
+			target = 150;
 			break;
-			
+		
 			case DISCARD: // something went wrong
-			return;
+			return retVal;
 		}
-		
-	}
-		
-	//determine first direction
-	rotationCw = (target - stepper.pos + 200)%200;
-	if (willContinue == 1)//priority
-	{
-		if (savedDir == 1)
-		{
-			dir = 1;
-		} else
-		{
-			dir = 0;
-		}
-	} else // if not , calculate dir
-	{  
-		if (rotationCw <= 100)
-		{
-			dir = 0;
-		} else
-		{
-			dir = 1;
-		}
-	}
 	
-	//first steps to turn
-	if (dir == 0)
-	{
-		stepsToRun = rotationCw;
-	}
-	else
-	{	
-		stepsToRun = 200 - rotationCw;
-	}
-
-	//determine second direction
-	if(qSize >= 1)
-	{
-		secRotationCw = (secTarget - target + 200)%200; // number to steps to second target
-		
-		if (secRotationCw > 101)
+		//determine first direction
+		rotationCw = (target - stepper.pos + 200)%200;
+		if (willContinue == 1)//priority
 		{
-			secDir = 1;
-		} else if (secRotationCw <= 101)
+			if (savedDir == 1)
+			{
+				dir = 1;
+			} else
+			{
+				dir = 0;
+			}
+		} else // if not , calculate dir
 		{
-			secDir = 0;			
+			if (rotationCw <= 100)
+			{
+				dir = 0;
+			} else
+			{
+				dir = 1;
+			}
 		}
 		
-		/*
-		if (qSize >= 2){
-			(*h)->next->e.itemCode;
-			 if (secRotationCw == 0) //ex: Al AL BLK
-			 {
-				calc dist/dir to third cyl, and calc 
-			 }
-		*/	
+		//first steps to turn
+		if (dir == 0)
+		{
+			stepsToRun = rotationCw;
+		}
+		else
+		{
+			stepsToRun = 200 - rotationCw;
+		}
+		
+		
+		if (qSize >= 1)
+		{
+			secCyl = (lqFirst(h)).itemCode;
+			// assign position to type
+			switch (secCyl)
+			{
+				case BLACK:
+				secTarget = 0;
+				break;
 			
+				case ALUM:
+				secTarget = 50;
+				break;
 			
-	}
-	
-	// set exit speed and position
-	if (dir == secDir && qSize >=1) 
-	{
-		willContinue = 1;
-		savedDir = secDir;
-		stepsToRun = stepsToRun - 25; // for border
+				case WHITE:
+				secTarget = 100;
+				break;
+			
+				case STEEL:
+				secTarget = 150;
+				break;
+			
+				case DISCARD: // something went wrong
+				return retVal;
+			}
 		
-		exitSpeed = 1200; //outDelay
+			//determine second direction
+			secRotationCw = (secTarget - target + 200)%200; // number to steps to second target
 		
-		/* if we have two same types and then another that has same direction  (Al, Al, BLK)
-		// determine exit speed
-		if (thirdCyl == secCyl) // if the second and third objects are the same, slow exitSpeed
-		{
-			exitSpeed = 555; // PLACEHOLDER
-		} else { 
-			exitSpeed = 999; // PLACEHOLDER
+			if (secRotationCw > 101)
+			{
+				secDir = 1;
+			} else if (secRotationCw <= 101)
+			{
+				secDir = 0;			
+			}
+		
+			/*
+			if (qSize >= 2){
+				(*h)->next->e.itemCode;
+				 if (secRotationCw == 0) //ex: Al AL BLK
+				 {
+					calc dist/dir to third cyl, and calc 
+				 }
+			*/	
+			// set exit speed and position
+			if (dir == secDir) 
+			{
+				willContinue = 1;
+				savedDir = secDir;
+				stepsToRun = stepsToRun - 25; // for border
+		
+				exitSpeed = 1200; //outDelay
+		
+				/* if we have two same types and then another that has same direction  (Al, Al, BLK)
+				// determine exit speed
+				if (thirdCyl == secCyl) // if the second and third objects are the same, slow exitSpeed
+				{
+					exitSpeed = 555; // PLACEHOLDER
+				} else { 
+					exitSpeed = 999; // PLACEHOLDER
+				}
+				*/
+		
+			} else
+			{
+				exitSpeed = 0;
+				willContinue = 0;
+			}
+		
+			// set delay for next cyl
+			if (target == secTarget)
+			{
+				retVal = 1;
+				skipAlign = 1;
+			}
+			else 
+			{
+				retVal = 0;
+			
+			}
+		
+		} else //if empty queue
+		{ 
+			exitSpeed = 0;
+			willContinue = 0;
 		}
-		*/
 		
-	} else
-	{
-		exitSpeed = 0;
-		willContinue = 0;
+		stepper.dir = dir;
+		rotateTrapLut(stepsToRun, exitSpeed);// i want the ISR to stop every time rotate() is called. 
 	}
 	
-	//LCDWriteIntXY(0,1,dir,1); //000
-	//LCDWriteIntXY(3,1,secDir,1); //682
-	
-	stepper.dir = dir;
-	rotateTrapLut(stepsToRun, exitSpeed);// i want the ISR to stop every time rotate() is called. 
-
+	return retVal;
 }

@@ -23,6 +23,9 @@ volatile unsigned int ADC_result_flag;
 uint16_t adc_total_min = 0;
 uint16_t adc_total_max = 0;
 
+// Object drop time parameters
+#define OBJECT_DROP_TIME 50
+
 void displayCalibration(uint16_t adc_min, uint16_t adcReadings)
 {
 	// If this is the first pass, set both total min and total max
@@ -99,6 +102,17 @@ void timerInit()
 	TCCR3B	|= _BV(WGM32); //CTC Mode with TOP being OCR3A value
 	TCNT3	= 0x0000; // start counting at zero
 	// Dont enable interrupt yet
+	
+	// Timer 4 for Drop Time
+	TCCR4A = 0;
+	// Set the prescaler to 256
+	//TCCR4B |= (1 << CS42);
+	TCCR4B |= _BV(WGM42); //CTC Mode with TOP being OCR4A value
+	TIMSK4 |= (1 << OCIE4A);
+	// Output compare value
+	OCR4A = 6000; //6000 looks good
+	// Initialize the counter value to 0
+	TCNT4 = 0;
 }
 
 void mTimer(uint32_t count)
