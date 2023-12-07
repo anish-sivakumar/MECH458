@@ -32,7 +32,7 @@
 #endif
 
 // Object detection threshold value
-#define OBJECT_THRESH 1020
+#define OBJECT_THRESH 1023
 
 typedef enum FSM_state
 {
@@ -316,22 +316,27 @@ int main(int argc, char *argv[]){
 					If the pause button is pressed and we entered from STEPPER_CONTROL:
 						-> Go to STEPPER_CONTROL
 				*/
-				
+				// Disable all interrupts
+			
+			
 				motorBrake();
 				LCDClear();
-				LCDWriteStringXY(0,0,"BL: WH: AL: ST:");
-				LCDWriteIntXY(0 ,1,processedCount[BLACK],3);
-				LCDWriteIntXY(4 ,1,processedCount[WHITE],3);
-				LCDWriteIntXY(8 ,1,processedCount[ALUM ],3);
-				LCDWriteIntXY(12,1,processedCount[STEEL],3);
+				LCDWriteStringXY(0,0,"BL WH AL ST US");
+				LCDWriteIntXY(0 ,1,processedCount[BLACK],2);
+				LCDWriteIntXY(3 ,1,processedCount[WHITE],2);
+				LCDWriteIntXY(6 ,1,processedCount[ALUM ],2);
+				LCDWriteIntXY(9 ,1,processedCount[STEEL],2);
+				LCDWriteIntXY(12,1,lqSize(&qHead,&qTail), 2);
 				
 				while (pFlag);
-				
+			
 				
 				LCDClear();
 				state = POLLING;
 				motorJog(motorDir, motorPwm);
-
+				
+				
+				
 				break;
 			
 			case END:
@@ -354,19 +359,31 @@ int main(int argc, char *argv[]){
 //  switch 0 - rampdown
 ISR(INT0_vect)
 { 
-	rdFlag = 1;
+	mTimer(15);
+	
+	if ((PIND & 0x01) == 0){
+			
+		while((PIND & 0x01) == 0);
+		mTimer(15);
+		
+		// Initialize the counter value to 0
+		TCNT5 = 0;
+		TCCR5B |= (1 << CS50) | (1 << CS52); //enable timer
+
+	}
+	
 }
 
 //  switch 1 - pause
 ISR(INT1_vect)
 { 
-	mTimer(20);
+	mTimer(15);
 	
 	if ((PIND & 0x02) == 0){
 		pFlag = !pFlag;
 		
 		while((PIND & 0x02) == 0);
-		mTimer(20);
+		mTimer(15);
 	}
 	
 	
@@ -377,11 +394,16 @@ ISR(INT1_vect)
 
 ISR(INT2_vect)
 {
-	if (!edFlag)
-	{
-		edCount++;
-	}
-	edFlag = 1;
+	//mTimer(1);
+	//if (!(PIND & 0x04) )
+	//{
+		if (!edFlag)
+		{
+			edCount++;
+		}
+		edFlag = 1;
+	//}
+
 	
 }
 
@@ -401,7 +423,8 @@ int on = 1;
 // Timer 4 overflow interrupt service routine sets the drop flag
 ISR(TIMER4_COMPA_vect) {
 	dFlag = 1;
-	TCCR4B |= (0 << CS42); //disable timer
+	TCCR4B &= ~(1 << CS42); //disable timer
+	
 	
 	PORTL = 0b00000000;
 	/*
@@ -415,4 +438,12 @@ ISR(TIMER4_COMPA_vect) {
 	}
 	*/
 
+}
+
+// Timer 5 overflow interrupt service routine
+ISR(TIMER5_COMPA_vect) {
+	
+	rdFlag = 1;
+	TCCR5B &= ~((1 << CS50) | (1 << CS52)); //disable
+	
 }

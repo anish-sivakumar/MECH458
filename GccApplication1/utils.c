@@ -16,10 +16,10 @@
 volatile unsigned int ADC_result_flag;
 
 // Calibration Settings
-#define BLACK_THRESH 1015
-#define WHITE_THRESH 974
-#define STEEL_THRESH 850
-#define ALUM_THRESH 200
+#define BLACK_THRESH 1018 //1017 - 990
+#define WHITE_THRESH 941 //979-940
+#define STEEL_THRESH 700 //591-430
+#define ALUM_THRESH 255 //39-30
 uint16_t adc_total_min = 0;
 uint16_t adc_total_max = 0;
 
@@ -94,6 +94,16 @@ void timerInit()
 	TCCR1B	|= _BV(WGM12); //CTC Mode with TOP being OCR1A value
 	TCNT1	= 0x0000; //start counting at zero
 	TIFR1	|= _BV(OCF1A); //set the output compare flag bit in the timer interrupt flag register.
+	
+	// rampdown timer
+	TCCR5A = 0;
+	
+	TCCR5B |= _BV(WGM52); //CTC Mode with TOP being OCR4A value
+	TIMSK5 |= (1 << OCIE5A);
+	// Output compare value
+	OCR5A = 40000;
+	// Initialize the counter value to 0
+	TCNT5 = 0;
 	
 	// stepTimer init
 	TCCR3A = 0;  // Set TCCR3A to 0 for normal operation
@@ -188,7 +198,10 @@ ISR(ADC_vect)
 void eiInit()
 {
 	EIMSK |= (_BV(INT0 ) | _BV(INT1 ) | _BV(INT2 ) | _BV(INT3 ) | _BV(INT4 )); // enable INT 0-4
-	EICRA |= (_BV(ISC01) | _BV(ISC00) | _BV(ISC11) | _BV(ISC10)); // rising edge interrupt for 0 and 1
+	EICRA |= (_BV(ISC01) | _BV(ISC11) ); // falling edge interrupt for 0 and 1
+	
+	//EICRA |= (_BV(ISC01) | _BV(ISC00) | _BV(ISC11) | _BV(ISC10)); // rising edge interrupt for 0 and 1
+	
 	EICRA |= (_BV(ISC21) | _BV(ISC31)); // falling edge for 2 and 3
 	EICRB |=  _BV(ISC41);				// falling edge for 4
 }
