@@ -110,7 +110,7 @@ void timerInit()
 	TCCR4B |= _BV(WGM42); //CTC Mode with TOP being OCR4A value
 	TIMSK4 |= (1 << OCIE4A);
 	// Output compare value
-	OCR4A = 7000; //7000 looks good
+	OCR4A = 5500; //7000 looks good
 	// Initialize the counter value to 0
 	TCNT4 = 0;
 }
@@ -187,7 +187,8 @@ ISR(ADC_vect)
 
 void eiInit()
 {
-	EIMSK |= (_BV(INT0 ) | _BV(INT1 ) | _BV(INT2 ) | _BV(INT3 )); // enable INT 0-3
+	EIMSK |= (_BV(INT0 ) | _BV(INT1 ) | _BV(INT2 ) | _BV(INT3 ) | _BV(INT4 )); // enable INT 0-4
 	EICRA |= (_BV(ISC01) | _BV(ISC00) | _BV(ISC11) | _BV(ISC10)); // rising edge interrupt for 0 and 1
 	EICRA |= (_BV(ISC21) | _BV(ISC31)); // falling edge for 2 and 3
+	EICRB |=  _BV(ISC41);				// falling edge for 4
 }

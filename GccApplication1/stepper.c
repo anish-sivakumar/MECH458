@@ -271,7 +271,7 @@ void rotateTrapLut(int stepsToRun, uint16_t outDelay)
 	decelIdx = 5;
 	if(outDelay != 0)
 	{
-		while(decel[decelIdx] < outDelay && decelIdx > 0)
+		while(accel[decel[decelIdx]] < outDelay && decelIdx > 0)
 		{
 			--decelIdx;
 		}

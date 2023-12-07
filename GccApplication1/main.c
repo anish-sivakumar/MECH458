@@ -47,7 +47,7 @@ FSM_state_t state = POLLING;
 
 // Motor settings
 volatile motorDir_t motorDir;
-volatile uint8_t motorPwm = 0x80; //0x90 before
+volatile uint8_t motorPwm = 0xA0; //0x90 before
 
 // Stepper settings
 int stepperLastPos = 0;
@@ -73,6 +73,9 @@ volatile int pFlag = 0;
 
 // Drop timer flag
 volatile int dFlag = 1;
+
+// OR sensor falling edge flag
+volatile int orFlag = 0;
 
 //TESTING
 volatile int edCount = 0;
@@ -128,6 +131,7 @@ int main(int argc, char *argv[]){
 	{
 		rotate(1,0);
 	}
+	rotate(4,1);
 	heFlag = 0;
 	resetPosition();
 	
@@ -164,23 +168,7 @@ int main(int argc, char *argv[]){
 				*/
 				motorJog(forward,motorPwm);
 				
-				// Get ADC reading
-				adcVal = adcRead();
-				//LCDWriteIntXY(0,1,adcVal,4)
-				
-				// Object processing logic
-				if ((adcVal < OBJECT_THRESH) && (PINE & 0x10) ) //AND OR-bit
-				{
-					// Were detecting an object
-					objDetect = 1;
-					if (adcVal < adcMin)
-					{
-						adcMin = adcVal;
-					}
-					adcReadings++;
-					
-				}
-				else if (objDetect && !(PINE & 0x10))
+				if (orFlag)
 				{
 					// Object has finished passing through, process it
 					#ifdef CALIBRATION_MODE
@@ -189,7 +177,7 @@ int main(int argc, char *argv[]){
 					#else
 						cylType = getCylType(adcMin);
 						
-						if (cylType != DISCARD && adcReadings > 5)
+						if (cylType != DISCARD && adcReadings > 4)
 						{
 							LCDWriteIntXY(6,1,adcMin,4)
 							LCDWriteIntXY(11,1,adcReadings,3);
@@ -205,7 +193,26 @@ int main(int argc, char *argv[]){
 					objDetect = 0;
 					adcMin = 0xFFFF;
 					adcReadings = 0;
+					orFlag = 0;
 				}
+				
+				// Get ADC reading
+				adcVal = adcRead();
+				//LCDWriteIntXY(0,1,adcVal,4)
+				
+				// Object processing logic
+				if  (PINE & 0x10)  //AND (adcVal < OBJECT_THRESH) &&
+				{
+					// Were detecting an object
+					objDetect = 1;
+					if (adcVal < adcMin)
+					{
+						adcMin = adcVal;
+					}
+					adcReadings++;
+					
+				}
+
 				
 				//LCDWriteIntXY(0,1,adcVal,5);
 				
@@ -320,6 +327,7 @@ int main(int argc, char *argv[]){
 				
 				while (pFlag);
 				
+				
 				LCDClear();
 				state = POLLING;
 				motorJog(motorDir, motorPwm);
@@ -352,7 +360,16 @@ ISR(INT0_vect)
 //  switch 1 - pause
 ISR(INT1_vect)
 { 
-	pFlag = !pFlag;
+	mTimer(20);
+	
+	if ((PIND & 0x02) == 0){
+		pFlag = !pFlag;
+		
+		while((PIND & 0x02) == 0);
+		mTimer(20);
+	}
+	
+	
 }
 
 // End of Belt Detect
@@ -360,15 +377,23 @@ ISR(INT1_vect)
 
 ISR(INT2_vect)
 {
+	if (!edFlag)
+	{
+		edCount++;
+	}
 	edFlag = 1;
-	edCount++;
+	
 }
 
 // Hall-Effect Sensor for stepper calibration
-
 ISR(INT3_vect)
 {
 	heFlag = 1;
+}
+
+ISR(INT4_vect)
+{
+	orFlag = 1;
 }
 
 int on = 1;
