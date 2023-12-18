@@ -17,12 +17,6 @@ void pwmInit()
 	  // Configure TCCR0A and TCCR0B registers for fast PWM mode with TOP = 0xFF (255)
 	  TCCR0A = (1 << WGM01) | (1 << WGM00);
 
-	  //// Enable timer overflow interrupt on MAX
-	  //TIMSK0 = (1 << TOIE0);
-
-	  //// Enable output compare interrupt for Timer 0 (pb7 - pin 13 on pwm)
-	  //TIMSK0 |= (1 << OCIE0A);
-
 	  // Set compare match output mode to clear on match
 	  TCCR0A |= (1 << COM0A1);
 
@@ -40,30 +34,8 @@ void pwmSet(uint8_t compareVal)
 void motorJog(motorDir_t dir, uint8_t compareVal) //direction (ccw - fwd)
 {
 	
-	//// break 5ms if were changing direction
-	//motor_dir_t prevDir = invalid;
-	//
-	////portB 7XXX 3210, where bits [0123 XXX7] -> [pwm,X,X,X,Ib,Eb,Ea,Ia]
-	//
-	//if(prevDir != dir){
-		//motor_brake();
-		//mTimer(5);//delay 5ms if changing direction to let switches not float
-		//
-	//}
-	
 	pwmSet(compareVal);
-	//if (dir == forward)
-	//{
-
-		PORTB = (PORTB & 0b11110000) | 0b00001110; //INb HI and enables HI
-
-	//}
-	//else if (dir == reverse)
-	//{
-		//PORTB = (PORTB & 0b11110000) | 0b00000111; //INa HI and enables HI
-	//}
-	//
-	//prevDir = dir; // to see if we are changing directions
+	PORTB = (PORTB & 0b11110000) | 0b00001110; //INb HI and enables HI
 	
 }
 

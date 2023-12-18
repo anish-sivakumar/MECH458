@@ -1,10 +1,9 @@
 /* ##################################################################
 # PROJECT: MECH 458 Final Project
 # GROUP: 3
-# NAME 1: First Name, Last Name, Student ID
-# NAME 2: First Name, Last Name, Student ID
-# DESC: This program does� [write out a brief summary]
-# DATA
+# NAME 1: Anish Sivakumar, V00940537
+# NAME 2: Christan Hyggen, V00945257
+# DESC: Inspection system to classify objects and sort into a bucket
 # REVISED ############################################################### */
 
 #include <util/delay_basic.h>
@@ -198,10 +197,9 @@ int main(int argc, char *argv[]){
 				
 				// Get ADC reading
 				adcVal = adcRead();
-				//LCDWriteIntXY(0,1,adcVal,4)
 				
 				// Object processing logic
-				if  (PINE & 0x10)  //AND (adcVal < OBJECT_THRESH) &&
+				if  (PINE & 0x10)  
 				{
 					// Were detecting an object
 					objDetect = 1;
@@ -212,9 +210,6 @@ int main(int argc, char *argv[]){
 					adcReadings++;
 					
 				}
-
-				
-				//LCDWriteIntXY(0,1,adcVal,5);
 				
 				// Check rampdown flag
 				if (rdFlag)
@@ -281,8 +276,7 @@ int main(int argc, char *argv[]){
 				while(dFlag == 0); 
 				
 				dFlag = smartAlign(poppedLink->e.itemCode, &qHead, &qTail); 
-				
-				//LCDWriteIntXY(14,1,dFlag,2);
+
 				if (dFlag == 0){ //if we are rotating
 					PORTL = 0b11111111;
 					// Enable Timer 4 
@@ -295,8 +289,7 @@ int main(int argc, char *argv[]){
 				{
 					processedCount[poppedLink->e.itemCode]++;
 				}
-				
-				//LCDWriteIntXY(4,0,poppedLink->e.itemCode,1);
+
 				free(poppedLink);
 				motorJog(motorDir, motorPwm);
 				edFlag = 0;
@@ -329,14 +322,11 @@ int main(int argc, char *argv[]){
 				LCDWriteIntXY(12,1,lqSize(&qHead,&qTail), 2);
 				
 				while (pFlag);
-			
-				
+						
 				LCDClear();
 				state = POLLING;
 				motorJog(motorDir, motorPwm);
-				
-				
-				
+
 				break;
 			
 			case END:
@@ -390,8 +380,6 @@ ISR(INT1_vect)
 }
 
 // End of Belt Detect
-// There is probably a better way to do this transition, just keeping it simple for now
-
 ISR(INT2_vect)
 {
 	//mTimer(1);
@@ -424,26 +412,11 @@ int on = 1;
 ISR(TIMER4_COMPA_vect) {
 	dFlag = 1;
 	TCCR4B &= ~(1 << CS42); //disable timer
-	
-	
 	PORTL = 0b00000000;
-	/*
-	if (on == 1){
-		PORTL = 0b11111111;
-		on = 0;
-	}
-	else {
-		PORTL = 0x00;
-		on = 1;
-	}
-	*/
-
 }
 
 // Timer 5 overflow interrupt service routine
 ISR(TIMER5_COMPA_vect) {
-	
 	rdFlag = 1;
 	TCCR5B &= ~((1 << CS50) | (1 << CS52)); //disable
-	
 }
